@@ -180,8 +180,8 @@ class BaseNodeVisitor(ast.NodeVisitor):
                     all_matched = False
                     break
 
-                args.extend(result.groups[:-1])
-                kwargs.update(result.groups[-1])
+                args.extend(result.args)
+                kwargs.update(result.kwargs)
 
             if not all_matched:
                 continue
