@@ -3,36 +3,60 @@ from __future__ import annotations
 import ast
 from typing import Callable, Generator, Literal, TypedDict, Unpack, cast
 
+from ..match_pattern import MATCH_TYPE_HINT_DEFAULT, MatchTypeHint
 from .core import Hook, HookProvider
 from .exception import SkipNode
 from .utils import DescriptorHelper, call_with_optional_self
 
-# ! Not used in pyi
-type NodeTypes[N] = type[N] | tuple[type[N], ...]
-type GetValue[VisitorT, N, T] = Callable[[N], T] | Callable[[VisitorT, N], T]
-type Reducer[VisitorT, N, T] = Callable[[T, N], T] | Callable[[VisitorT, T, N], T]
-
+# ---------------------------------------------------------------------------- #
+#                         Types (overlapped with .pyi)                         #
+# ---------------------------------------------------------------------------- #
 
 type ReducerHookMode = Literal["before", "after"]
 
+type NodeTypes[N] = type[N] | tuple[type[N], ...]
+type InitialValue[T] = Callable[[], T] | T
+type GetValue[VisitorT, N, T, *Args, Kwargs: dict] = (
+    Callable[[N], T]
+    | Callable[[N, *Args, Kwargs], T]
+    | Callable[[VisitorT, N], T]
+    | Callable[[VisitorT, N, *Args, Kwargs], T]
+)
+type Reducer[VisitorT, N, T, *Args, Kwargs: dict] = (
+    Callable[[T, N], T]
+    | Callable[[T, N, *Args, Kwargs], T]
+    | Callable[[VisitorT, T, N], T]
+    | Callable[[VisitorT, T, N, *Args, Kwargs], T]
+)
 
-class PartialReducerOptions(TypedDict, total=False):
+
+class PartialReducerOptions[N: ast.AST, *Args, Kwargs: dict](TypedDict, total=False):
     mode: ReducerHookMode
     before: tuple[str, ...]
     patterns: list[str] | None
+    match_type_hint: MatchTypeHint[N, *Args, Kwargs]
 
 
-class ReducerOptions(TypedDict, total=True):
+class ReducerOptions[N: ast.AST, *Args, Kwargs: dict](TypedDict, total=True):
     mode: ReducerHookMode
     before: tuple[str, ...]
     patterns: list[str] | None
+    match_type_hint: MatchTypeHint[N, *Args, Kwargs]
 
+
+# ---------------------------------------------------------------------------- #
+#                                Implementation                                #
+# ---------------------------------------------------------------------------- #
 
 _DEFAULT_OPTIONS: ReducerOptions = {
     "mode": "before",
     "before": (),
     "patterns": None,
+    "match_type_hint": MATCH_TYPE_HINT_DEFAULT,
 }
+
+
+# ------------------------------- Base Reducer ------------------------------- #
 
 
 # TODO: raise error
@@ -105,6 +129,9 @@ def node_reducer[Visitor: ast.NodeVisitor, N: ast.AST, T](
     return decorator
 
 
+# ----------------------------------- List ----------------------------------- #
+
+
 class NodeListCollector[Visitor: ast.NodeVisitor, N: ast.AST, Value](
     NodeReducer[Visitor, N, list[Value]]
 ):
@@ -145,6 +172,9 @@ def nodelist_collector[Visitor: ast.NodeVisitor, N: ast.AST, Value](
     return decorator
 
 
+# ------------------------------------ Set ----------------------------------- #
+
+
 class NodeSetCollector[Visitor: ast.NodeVisitor, N: ast.AST, Value](
     NodeReducer[Visitor, N, set[Value]]
 ):
@@ -173,6 +203,9 @@ def nodeset_collector[Visitor: ast.NodeVisitor, N: ast.AST, Value](
         return NodeSetCollector(node_types, get_value, **kwargs)
 
     return decorator
+
+
+# ------------------------------------ Map ----------------------------------- #
 
 
 class NodeMapCollector[Visitor: ast.NodeVisitor, N: ast.AST, Key, Value](
