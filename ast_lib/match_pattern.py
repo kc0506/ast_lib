@@ -1,3 +1,7 @@
+""""""
+
+# ! Note: there is only two possible types of list: AST or _Identifier
+
 from __future__ import annotations
 
 import ast
@@ -6,7 +10,7 @@ import re
 
 # from pydantic.dataclasses import dataclass
 from dataclasses import dataclass
-from typing import Any, Literal, overload
+from typing import Any, Literal, cast, overload
 
 from loguru import logger
 
@@ -19,48 +23,6 @@ logger.remove()
 def debug_log(msg: str, depth: float):
     msg = re.sub(" at 0x[0-9a-fA-F]+>", ">", msg)
     logger.debug(f"{' ' * int(depth * 2)}{msg}")
-
-
-# TODO: captures
-
-
-@dataclass
-class MatchResult[*T, K: dict]:
-    groups: tuple[*T, K]
-
-
-class MatchTypeHint[*T, K: dict]:
-    pass
-
-
-@overload
-def match_pattern[*T, K: dict](
-    pattern: str,
-    target: ast.AST,
-    assert_match: Literal[False] = False,
-    match_type_hint: MatchTypeHint[*T, K] = MatchTypeHint[*tuple[Any, ...], dict](),  # pyright: ignore
-) -> MatchResult[*T, K] | None: ...
-
-
-@overload
-def match_pattern[*T, K: dict](
-    pattern: str,
-    target: ast.AST,
-    #
-    assert_match: Literal[True],
-    match_type_hint: MatchTypeHint[*T, K] = MatchTypeHint[*tuple[Any, ...], dict](),  # pyright: ignore
-) -> MatchResult[*T, K]: ...
-
-
-def match_pattern[*T, K: dict](
-    pattern: str,
-    target: ast.AST,
-    #
-    assert_match: bool = False,
-    match_type_hint: MatchTypeHint[*T, K] = MatchTypeHint[*tuple[Any, ...], dict](),  # pyright: ignore
-) -> MatchResult[*T, K] | None:
-    pattern_node = parse_pattern(pattern)
-    return match_node(pattern_node, target, assert_match=assert_match)  # pyright: ignore
 
 
 def _match_field(
@@ -92,9 +54,6 @@ def _match_field(
 
     debug_log(f"Field {field_pattern} is not list, match", depth)
     return field_pattern == field_target
-
-
-# ! Note: there is only two possible types of list: AST or _Identifier
 
 
 def _match_node(
@@ -192,48 +151,50 @@ def _match_node(
     return True
 
 
-# @overload
-# def match_node[*T, K: dict](
-#     pattern_node: nodes.AST,
-#     target: ast.AST,
-#     match_type_hint: MatchTypeHint[*T, K],
-# ) -> MatchResult[*T, K] | None: ...
+@dataclass
+class MatchResult[N: ast.AST, *T, K: dict]:
+    node: N
+    args: tuple[*T]
+    kwargs: K
+
+    def to_tuple(self) -> tuple[N, *T, K]:
+        return (self.node, *self.args, self.kwargs)
 
 
-# @overload
-# def match_node[*T, K: dict](
-#     pattern_node: nodes.AST,
-#     target: ast.AST,
-# ) -> MatchResult[*tuple[Any, ...], dict] | None: ...
+class MatchTypeHint[N: ast.AST, *T, K: dict]:
+    pass
+
+
+MATCH_TYPE_HINT_DEFAULT = MatchTypeHint[ast.AST, *tuple[Any, ...], dict]()
 
 
 @overload
-def match_node[*T, K: dict](
+def match_node[N: ast.AST, *T, K: dict](
     pattern_node: nodes.AST,
     target: ast.AST,
     #
     assert_match: Literal[True],
-    match_type_hint: MatchTypeHint[*T, K] = MatchTypeHint[*tuple[Any, ...], dict](),  # pyright: ignore
-) -> MatchResult[*T, K]: ...
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
+) -> MatchResult[N, *T, K]: ...
 
 
 @overload
-def match_node[*T, K: dict](
+def match_node[N: ast.AST, *T, K: dict](
     pattern_node: nodes.AST,
     target: ast.AST,
     #
     assert_match: Literal[False] = False,
-    match_type_hint: MatchTypeHint[*T, K] = MatchTypeHint[*tuple[Any, ...], dict](),  # pyright: ignore
-) -> MatchResult[*T, K] | None: ...
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
+) -> MatchResult[N, *T, K] | None: ...
 
 
-def match_node[*T, K: dict](
+def match_node[N: ast.AST, *T, K: dict](
     pattern_node: nodes.AST,
     target: ast.AST,
     #
     assert_match: bool = False,
-    match_type_hint: MatchTypeHint[*T, K] = MatchTypeHint[*tuple[Any, ...], dict](),  # pyright: ignore
-) -> MatchResult[*T, K] | None:
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,  # pyright: ignore
+) -> MatchResult[N, *T, K] | None:
     sink = io.StringIO()
     handler_id = logger.add(sink, format="{message}")
 
@@ -247,11 +208,11 @@ def match_node[*T, K: dict](
         if int_keys:
             assert int_keys == list(range(min(int_keys), max(int_keys) + 1))
 
-        groups: Any = [None] * len(int_keys) + [captures]
+        args: Any = [None] * len(int_keys) + [captures]
         for k in int_keys:
-            groups[k] = captures.pop(k)
+            args[k] = captures.pop(k)
 
-        return MatchResult(groups=tuple(groups))
+        return cast(Any, MatchResult(node=target, args=tuple(args), kwargs=captures))
 
     if assert_match:
         raise ValueError(
@@ -260,3 +221,33 @@ def match_node[*T, K: dict](
             f"{sink.getvalue()}"
         )
     return None
+
+
+@overload
+def match_pattern[N: ast.AST, *T, K: dict](
+    pattern: str,
+    target: ast.AST,
+    assert_match: Literal[False] = False,
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
+) -> MatchResult[N, *T, K] | None: ...
+
+
+@overload
+def match_pattern[N: ast.AST, *T, K: dict](
+    pattern: str,
+    target: ast.AST,
+    #
+    assert_match: Literal[True],
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
+) -> MatchResult[N, *T, K]: ...
+
+
+def match_pattern[N: ast.AST, *T, K: dict](
+    pattern: str,
+    target: ast.AST,
+    #
+    assert_match: bool = False,
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,  # pyright: ignore
+) -> MatchResult[N, *T, K] | None:
+    pattern_node = parse_pattern(pattern)
+    return match_node(pattern_node, target, assert_match=assert_match)  # pyright: ignore
