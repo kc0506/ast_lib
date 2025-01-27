@@ -494,6 +494,7 @@ class UnparserWithComments(NodeVisitor):
         if type_params is not None and len(type_params) > 0:
             with self.delimit("[", "]"):
                 self.interleave(lambda: self.write(", "), self.traverse, type_params)
+                self.write(",")
 
     def visit_TypeVar(self, node):
         self.write(node.name)
