@@ -1,21 +1,27 @@
+# pyright: reportWildcardImportFromLibrary=false
+
 """
 Adapted from ast.unparse
 """
 
-import re
+from __future__ import annotations
+
+import ast
 import sys
+import tokenize
 
 # from _ast import *
 from ast import *
 from contextlib import contextmanager, nullcontext
-from enum import IntEnum, _simple_enum, auto
+from enum import IntEnum, _simple_enum, auto  # pyright: ignore
+from typing import Generator
 
 # Large float and imaginary literals get turned into infinities in the AST.
 # We unparse those infinities to INFSTR.
 _INFSTR = "1e" + repr(sys.float_info.max_10_exp + 1)
 
 
-@_simple_enum(IntEnum)
+@_simple_enum(IntEnum)  # pyright: ignore
 class _Precedence:
     """Precedence table that originated from python grammar."""
 
@@ -42,7 +48,7 @@ class _Precedence:
 
     def next(self):
         try:
-            return self.__class__(self + 1)
+            return self.__class__(self + 1)  # pyright: ignore
         except ValueError:
             return self
 
@@ -57,13 +63,61 @@ class UnparserWithComments(NodeVisitor):
     output source code for the abstract syntax; original formatting
     is disregarded."""
 
-    def __init__(self, *, _avoid_backslashes=False):
+    def __init__(
+        self,
+        tokens: Generator[tokenize.TokenInfo],
+        ignore_prefixes: list[str] | None = None,
+        *,
+        _avoid_backslashes=False,
+    ):
         self._source = []
         self._precedences = {}
         self._type_ignores = {}
         self._indent = 0
         self._avoid_backslashes = _avoid_backslashes
         self._in_try_star = False
+
+        self.tokens = list(reversed(list(tokens)))
+        self.token_line = 1
+        self.ignore_prefixes = ignore_prefixes or []
+
+    def write_comments_until_line(self, line: int):
+        while self.tokens:
+            cur = self.tokens[-1]
+            if cur.type == tokenize.NEWLINE or cur.type == tokenize.NL:
+                # self.write("\n")
+                self.token_line += 1
+                self.tokens.pop()
+                continue
+
+            if self.token_line > line:
+                break
+
+            self.tokens.pop()
+            if cur.type == tokenize.COMMENT:
+                # print("write line (until line) ", self.token_line, cur.string)
+                if all(
+                    not cur.string.removeprefix("# ").startswith(prefix)
+                    for prefix in self.ignore_prefixes
+                ):
+                    self.write("\n", cur.string, "\n")
+
+    def write_comments_until_op(self, op: str, max_line: int | None = None):
+        while self.tokens and (max_line is None or self.token_line <= max_line):
+            cur = self.tokens.pop()
+            if cur.type == tokenize.NEWLINE or cur.type == tokenize.NL:
+                self.token_line += 1
+
+            if cur.type == tokenize.OP and cur.string == op:
+                break
+
+            if cur.type == tokenize.COMMENT:
+                # print("write line (until op) ", self.token_line, cur.string)
+                if all(
+                    not cur.string.removeprefix("# ").startswith(prefix)
+                    for prefix in self.ignore_prefixes
+                ):
+                    self.write("\n", cur.string, "\n")
 
     def interleave(self, inter, f, seq):
         """Call f on each item in seq, calling inter() in between."""
@@ -175,6 +229,9 @@ class UnparserWithComments(NodeVisitor):
             return f" # type: {comment}"
 
     def traverse(self, node):
+        if isinstance(node, ast.AST) and (lineno := getattr(node, "lineno", None)):
+            self.write_comments_until_line(lineno)
+
         if isinstance(node, list):
             for item in node:
                 self.traverse(item)
@@ -411,7 +468,9 @@ class UnparserWithComments(NodeVisitor):
     def visit_AsyncFunctionDef(self, node):
         self._function_helper(node, "async def")
 
-    def _function_helper(self, node, fill_suffix):
+    def _function_helper(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, fill_suffix
+    ):
         self.maybe_newline()
         for deco in node.decorator_list:
             self.fill("@")
@@ -422,6 +481,9 @@ class UnparserWithComments(NodeVisitor):
             self._type_params_helper(node.type_params)
         with self.delimit("(", ")"):
             self.traverse(node.args)
+            assert node.end_lineno is not None
+            max_line = node.end_lineno
+            self.write_comments_until_op(")", max_line)
         if node.returns:
             self.write(" -> ")
             self.traverse(node.returns)
@@ -972,6 +1034,8 @@ class UnparserWithComments(NodeVisitor):
                 first = False
             else:
                 self.write(", ")
+            if node.vararg:
+                self.write_comments_until_line(node.vararg.lineno)
             self.write("*")
             if node.vararg:
                 self.write(node.vararg.arg)
@@ -994,6 +1058,9 @@ class UnparserWithComments(NodeVisitor):
                 first = False
             else:
                 self.write(", ")
+
+            self.write_comments_until_line(node.kwarg.lineno)
+
             self.write("**" + node.kwarg.arg)
             if node.kwarg.annotation:
                 self.write(": ")
