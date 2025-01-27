@@ -1,0 +1,7 @@
+
+# Compound Examples
+$a.$b
+$call{self.$method(~)}.$attr
+$sub{items[~]}.method(~)
+$attr{~.method}($arg{~})
+$chain{~.`.method(~)}

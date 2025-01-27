@@ -1,0 +1,152 @@
+# TODO: a.b.c 
+# TODO: args
+# TODO: constants
+# TODO: $0
+
+@func"""\
+{{
+  function reduceChain(p, s) {
+    return s.reduce((acc, suffix) => {
+        if (suffix.type === 'call') return { type: 'Call', func: acc, args: suffix.args }
+        if (suffix.type === 'attr') return { type: 'Attribute', value: acc, attr: suffix.attr }
+        if (suffix.type === 'subscript') return { type: 'Subscript', value: acc, slice: suffix.slice }
+        return acc
+    }, p)
+  }
+
+  function makeDict(head, tail){
+    return [head, ...tail.map(([_, k, __, v]) => [k, v])]
+  }
+}}
+"""
+
+start = stmts
+
+stmts =
+    s:stmt '\n' rest:stmts {return [s, ...rest]}     
+    / s:stmt {return [s]}
+
+stmt = 
+    x:comment 
+    / d:decorators _ 'def' _ n:id _ '(' _ a:args _ ')' _ ellipsis? { return { type: 'FunctionDef', name: n, decorators: d } }
+    / d:decorators _ 'async' _ 'def' _ n:id _ '(' _ a:args _ ')' _ ellipsis? { return { type: 'AsyncFunctionDef', name: n, decorators: d } }
+    / d:decorators _ 'class' _ n:id _ bases:class_bases _ ellipsis? { return { type: 'ClassDef', name: n, bases, decorators: d } }
+    / 'return' _ e:expr { return { type: 'Return', value: e } }
+    / 'delete' _ e:expr { return { type: 'Delete', target: e } }
+    / target:expr _ '=' _ value:expr { return { type: 'Assign', target, value } }
+    / target:expr _ ':' _ ann:expr _ '=' _ value:expr { return { type: 'AnnAssign', target, annotation: ann, value } }
+    / 'for' _ target:expr _ 'in' _ iter:expr _ ellipsis? { return { type: 'For', target, iter } }
+    / 'async' _ 'for' _ target:expr _ 'in' _ iter:expr _ ellipsis? { return { type: 'AsyncFor', target, iter } }
+    / 'while' _ test:expr _ ellipsis? { return { type: 'While', test } }
+    / 'if' _ test:expr _ ('=' _ ellipsis?)? { return { type: 'If', test } }
+    / 'with' _ items:withitem* _ ('=' _ ellipsis?)? { return { type: 'With', items } }
+    / 'async' _ 'with' _ items:withitem* _ ('=' _ ellipsis?)? { return { type: 'AsyncWith', items } }
+    / e:expr _ {return {type: 'Expr', value: e}}
+    / ''
+
+comment =  
+	'#' x:comment_item* {return {type: "Comment",value: x.join('').trim()}}	
+
+comment_item = 
+    NAME
+    / " "
+    / "\t"
+
+decorators =
+    d:decorator { return [d] }
+    / d:decorator _ '\n' _ rest:decorators { return [d, ...rest] }
+    / '' {return []}
+
+decorator =
+    '@' _ e:expr { return e }
+
+class_bases = 
+    '(' _ e:exprs _ ')' {return e}
+    / ''
+
+exprs =
+    e:expr {return [e]}
+    / head:expr _ ',' _ tail:exprs { return [head, ...tail] }
+
+args = ''
+
+withitem =
+    ctx:expr _ ('as' _ vars:expr)? { return { context_expr: ctx, optional_vars: vars } }
+
+expr =
+    name:capture _ '{' _ pattern:expr _ '}' { return { type: 'Capture', name, pattern } }
+    / chain
+
+chain =
+    p:primary s:suffix* { return reduceChain(p, s) }
+
+
+suffix =
+    '(' _ args:exprs? _ ')' { return { type: 'Call', args: args || [] } }
+    / '.' _ attr:id { return { type: 'Attribute', attr } }
+    / '[' _ slice:expr _ ']' { return { type: 'Subscript', slice } }
+
+primary =
+    constant
+    / '{' _ d:dict _ '}' { return { type: 'Dict', pairs: d } }
+    / '{' _ e:exprs? _ '}' { return { type: 'Set', elts: e || [] } }
+    / 'await' _ e:expr { return { type: 'Await', value: e } }
+    / '[' _ e:exprs? _ ']' { return { type: 'List', elts: e || [] } }
+    / '(' _ e:exprs? _ ')' { return { type: 'Tuple', elts: e || [] } }
+    / '~' {return {type: 'Wildcard'}}
+    / id
+
+dict =
+    head:(k:expr _ ':' _ v:expr) tail:(',' _ k:expr _ ':' _ v:expr)* {
+        return makeDict(head, tail)
+    }
+
+id = 
+    n:NAME { return { type: 'Name', id: n}}
+    / c:capture { return {...c, pattern: {type: 'Name'}} }
+    / '`' { return { type: 'WildcardId'} }
+
+capture =
+    '$' _ n:NAME { return { type: 'Capture', name: n } }
+
+ellipsis =
+    '...'
+    / ':' _ '...'
+
+constant =
+    'None' { return { type: 'Constant', value: null } }
+    / 'True' { return { type: 'Constant', value: true } }
+    / 'False' { return { type: 'Constant', value: false } }
+    / n:NUMBER { return { type: 'Constant', value: n } }
+    / s:STRING { return { type: 'Constant', value: s } }
+
+NUMBER = 
+    float
+    / integer
+
+integer =
+    digits:DIGIT+ { return parseInt(digits.join(''), 10) }
+
+float =
+    int:DIGIT+ '.' dec:DIGIT+ { 
+        return parseFloat(int.join('') + '.' + dec.join('')) 
+    }
+
+STRING = 
+    single_quoted
+    / double_quoted
+
+single_quoted =
+    "'" chars:CHAR* "'" { return chars.join('') }
+
+double_quoted =
+    '"' chars:CHAR* '"' { return chars.join('') }
+
+
+DIGIT = '0' / '1' / '2' / '3' / '4' / '5' / '6' / '7' / '8' / '9'
+LETTER = 'a' / 'b' / 'c' / 'd' / 'e' / 'f' / 'g' / 'h' / 'i' / 'j' / 'k' / 'l' / 'm' / 'n' / 'o' / 'p' / 'q' / 'r' / 's' / 't' / 'u' / 'v' / 'w' / 'x' / 'y' / 'z' / 'A' / 'B' / 'C' / 'D' / 'E' / 'F' / 'G' / 'H' / 'I' / 'J' / 'K' / 'L' / 'M' / 'N' / 'O' / 'P' / 'Q' / 'R' / 'S' / 'T' / 'U' / 'V' / 'W' / 'X' / 'Y' / 'Z'
+CHAR = DIGIT / LETTER
+
+NAME = chars:LETTER+ { return chars.join('') }
+
+_ = '' / ' ' _ / '\t' _

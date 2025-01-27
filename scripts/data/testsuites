@@ -1,0 +1,59 @@
+# Simple captures
+$x
+$x{~}
+$call{~(~)}
+$attr{~.x}
+
+# Names and Attributes
+self.method
+obj.$attr
+$obj.method
+$attr{~.method}
+$chain{~.`.`}
+
+# Function Calls
+func()
+func(arg)
+func(arg1, arg2)
+self.method()
+$call{func(~)}
+$call{~(x, y)}
+$call{self.method(~)}
+
+# Subscripts
+lst[0]
+$sub{lst[~]}
+$sub{~[index]}
+$sub{~[~]}
+items[slice]
+
+# Function Definitions
+def func():
+def func(arg1, arg2):
+@decorator\ndef func():
+async def func():
+
+# Class Definitions
+class Name:
+class Name(Base):
+class Name(Base1, Base2):
+@deco\nclass Name:
+
+# Control Flow
+if condition:
+while test:
+for item in items:
+async for x in y:
+with context:
+async with context:
+
+# Assignments
+x = y
+$assign{~ = ~}
+x: type = value
+
+# Compound Examples
+$call{self.$method(~)}.$attr
+$sub{items[~]}.method(~)
+$attr{~.method}($arg{~})
+$chain{~.~.method(~)}
