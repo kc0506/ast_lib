@@ -1,10 +1,26 @@
 
 
+VISITOR_TARGETS = reducer presets context
+VISITOR_PYI_FULL_PATHS = $(addprefix ast_lib/visitor/,$(addsuffix .pyi,$(VISITOR_TARGETS)))
+
 .PHONY: visitor-pyi
 visitor-pyi:
-	uv run -m scripts.transform_visitor_pyi reducer
-	uv run ruff format ast_lib/visitor/*.pyi
-	uv run ruff check ast_lib/visitor/*.pyi --fix
+	uv run -m scripts.transform_visitor_pyi $(VISITOR_TARGETS)
+	uv run ruff format $(VISITOR_PYI_FULL_PATHS)
+	uv run ruff check $(VISITOR_PYI_FULL_PATHS) --fix
+	uv run pyright $(VISITOR_PYI_FULL_PATHS) tests/test_types.py
+
+
+SYNC_VISITOR_FULL_PATHS = $(addprefix ast_lib/visitor/,$(addsuffix .py,$(VISITOR_TARGETS)))
+
+# TODO: undo
+.PHONY: sync-visitor
+sync-visitor:
+	uv run -m scripts.sync_visitor_with_pyi $(VISITOR_TARGETS)
+	uv run ruff format $(SYNC_VISITOR_FULL_PATHS)
+	uv run ruff check $(SYNC_VISITOR_FULL_PATHS) --fix
+	uv run pyright $(SYNC_VISITOR_FULL_PATHS)
+
 
 .PHONY: gen-nodes
 gen-nodes:
