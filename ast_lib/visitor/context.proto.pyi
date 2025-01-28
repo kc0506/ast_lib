@@ -39,20 +39,26 @@ class NodeContextVar[
         self: NodeContextVar[VisitorT, N, T, _TrueType, *Args, Kwargs],  # pyright: ignore
         node_types: NodeTypes[N],
         get_value: GetValue[VisitorT, N, T, *Args, Kwargs],
+        *,
         default: T,
+        pred: GetValue[VisitorT, N, bool, *Args, Kwargs] | None = None,
     ): ...
     @overload
     def __init__(
         self: NodeContextVar[VisitorT, N, T, _TrueType, *Args, Kwargs],  # pyright: ignore
         node_types: NodeTypes[N],
         get_value: GetValue[VisitorT, N, T, *Args, Kwargs],
+        *,
         default_factory: Callable[[], T],
+        pred: GetValue[VisitorT, N, bool, *Args, Kwargs] | None = None,
     ): ...
     @overload
     def __init__(
         self: NodeContextVar[VisitorT, N, T, _FalseType, *Args, Kwargs],  # pyright: ignore
         node_types: NodeTypes[N],
         get_value: GetValue[VisitorT, N, T, *Args, Kwargs],
+        *,
+        pred: GetValue[VisitorT, N, bool, *Args, Kwargs] | None = None,
     ): ...
     #
     @property
@@ -87,6 +93,8 @@ def node_context[
     Kwargs: dict,
 ](
     *node_types: type[N],
+
+    pred: GetValue[VisitorT, N, bool, *Args, Kwargs] | None = None,
 ) -> Callable[
     [GetValue[VisitorT, N, T, *Args, Kwargs]],
     NodeContextVar[VisitorT, N, T, _FalseType, *Args, Kwargs],
@@ -101,6 +109,7 @@ def node_context[
 ](
     *node_types: type[N],
     default: T,
+    pred: GetValue[VisitorT, N, bool, *Args, Kwargs] | None = None,
 ) -> Callable[
     [GetValue[VisitorT, N, T, *Args, Kwargs]],
     NodeContextVar[VisitorT, N, T, _TrueType, *Args, Kwargs],
@@ -115,6 +124,7 @@ def node_context[
 ](
     *node_types: type[N],
     default_factory: Callable[[], T],
+    pred: GetValue[VisitorT, N, bool, *Args, Kwargs] | None = None,
 ) -> Callable[
     [GetValue[VisitorT, N, T, *Args, Kwargs]],
     NodeContextVar[VisitorT, N, T, _TrueType, *Args, Kwargs],

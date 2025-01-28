@@ -1,20 +1,23 @@
 """"""
 
+# Synced by scripts/sync_visitor_with_pyi.py with presets.proto.pyi
+# Synced by scripts/sync_visitor_with_pyi.py with presets.proto.pyi
+# Synced by scripts/sync_visitor_with_pyi.py with presets.proto.pyi
 # TODO: indent level
 # TODO: qualname
 
 from __future__ import annotations
-
 import ast
 from contextlib import contextmanager
-from typing import (
-    Any,
-    Callable,
-)
-
+from typing import Any, Callable
 from ..match_pattern import MatchResult
 from .core import Hook, HookMode, HookProvider
 from .utils import DescriptorHelper, invoke_callback
+
+type NodeTypes[N] = type[N] | tuple[type[N], ...]
+type VisitHook[VisitorT: ast.NodeVisitor, N: ast.AST] = (
+    Callable[[VisitorT, N], Any] | Callable[[VisitorT, N, MatchResult], Any]
+)
 
 
 class ParentMap(HookProvider, DescriptorHelper):
@@ -34,12 +37,7 @@ class ParentMap(HookProvider, DescriptorHelper):
             yield
             self._set_attr(instance, "current_node", node)
 
-        return Hook(
-            (ast.AST,),
-            "wrap",
-            func,
-            setup,
-        )
+        return Hook((ast.AST,), "wrap", func, setup)
 
     def __get__(
         self, instance: ast.NodeVisitor, owner: type[ast.NodeVisitor]
@@ -47,28 +45,28 @@ class ParentMap(HookProvider, DescriptorHelper):
         return self._get_attr(instance, "parent_map")
 
 
-class PureNodeVisitHook(HookProvider):
+class PureNodeVisitHook[
+    VisitorT: ast.NodeVisitor,
+    N: ast.AST,
+](HookProvider, DescriptorHelper):
     def __init__(
         self,
-        node_types: tuple[type[ast.AST], ...],
-        func: Callable[[ast.NodeVisitor, ast.AST, MatchResult], Any],
+        node_types: NodeTypes[N],
+        func: Callable[[VisitorT, N], Any] | Callable[[VisitorT], Any],
         mode: HookMode = "before",
-        #
         before: tuple[str, ...] = (),
         after: tuple[str, ...] = (),
     ):
+        if not isinstance(node_types, tuple):
+            node_types = (node_types,)
+
         def hook_func(
             instance: ast.NodeVisitor, node: ast.AST, match_result: MatchResult
         ):
             return invoke_callback(func, instance, node, match_result=match_result)
 
         self.hook = Hook(
-            node_types,
-            mode,
-            hook_func,
-            setup=None,
-            before=before,
-            after=after,
+            node_types, mode, hook_func, setup=None, before=before, after=after
         )
 
     def get_hook(self) -> Hook:
@@ -77,13 +75,16 @@ class PureNodeVisitHook(HookProvider):
 
 # todo: before, after, wrap
 # todo:? match field (create overloads for every ast class)
-def pure_visit(
-    *node_types: type[ast.AST],
+
+
+def pure_visit[VisitorT: ast.NodeVisitor, N: ast.AST, *Args, Kwargs: dict](
+    *node_types: type[N],
     mode: HookMode = "before",
-    #
     before: tuple[str, ...] = (),
     after: tuple[str, ...] = (),
-) -> Callable[[Callable[..., Any]], Any]:
+) -> Callable[[VisitHook[VisitorT, N]], PureNodeVisitHook[VisitorT, N]]:
+    #
+
     def wrapper(func: Callable[..., Any]) -> Any:
         return PureNodeVisitHook(node_types, func, mode, before, after)
 

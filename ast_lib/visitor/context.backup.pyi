@@ -25,7 +25,12 @@ class NodeContextVar[
         get_value: Callable[[N], T]
         | Callable[[VisitorT, N], T]
         | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], T],
+        *,
         default: T,
+        pred: Callable[[N], bool]
+        | Callable[[VisitorT, N], bool]
+        | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], bool]
+        | None = None,
     ): ...
     @overload
     def __init__(
@@ -34,7 +39,12 @@ class NodeContextVar[
         get_value: Callable[[N], T]
         | Callable[[VisitorT, N], T]
         | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], T],
+        *,
         default_factory: Callable[[], T],
+        pred: Callable[[N], bool]
+        | Callable[[VisitorT, N], bool]
+        | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], bool]
+        | None = None,
     ): ...
     @overload
     def __init__(
@@ -43,6 +53,11 @@ class NodeContextVar[
         get_value: Callable[[N], T]
         | Callable[[VisitorT, N], T]
         | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], T],
+        *,
+        pred: Callable[[N], bool]
+        | Callable[[VisitorT, N], bool]
+        | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], bool]
+        | None = None,
     ): ...
 
     #
@@ -79,6 +94,10 @@ class NodeContextVar[
 @overload
 def node_context[VisitorT: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
     *node_types: type[N],
+    pred: Callable[[N], bool]
+    | Callable[[VisitorT, N], bool]
+    | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], bool]
+    | None = None,
 ) -> Callable[
     [
         Callable[[N], T]
@@ -89,7 +108,12 @@ def node_context[VisitorT: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
 ]: ...
 @overload
 def node_context[VisitorT: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
-    *node_types: type[N], default: T
+    *node_types: type[N],
+    default: T,
+    pred: Callable[[N], bool]
+    | Callable[[VisitorT, N], bool]
+    | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], bool]
+    | None = None,
 ) -> Callable[
     [
         Callable[[N], T]
@@ -100,7 +124,12 @@ def node_context[VisitorT: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
 ]: ...
 @overload
 def node_context[VisitorT: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
-    *node_types: type[N], default_factory: Callable[[], T]
+    *node_types: type[N],
+    default_factory: Callable[[], T],
+    pred: Callable[[N], bool]
+    | Callable[[VisitorT, N], bool]
+    | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], bool]
+    | None = None,
 ) -> Callable[
     [
         Callable[[N], T]

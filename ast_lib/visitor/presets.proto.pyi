@@ -13,7 +13,10 @@ type VisitHook[VisitorT: ast.NodeVisitor, N: ast.AST] = (
     Callable[[VisitorT, N], Any] | Callable[[VisitorT, N, MatchResult], Any]
 )
 
-__expand__ = (VisitHook,)
+__expand__ = (
+    NodeTypes,
+    VisitHook,
+)
 
 class ParentMap(HookProvider, DescriptorHelper):
     def get_hook(self) -> Hook: ...

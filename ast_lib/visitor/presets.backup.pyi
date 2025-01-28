@@ -6,8 +6,6 @@ from ..match_pattern import MatchResult
 from .core import Hook, HookMode, HookProvider
 from .utils import DescriptorHelper
 
-type NodeTypes[N] = type[N] | tuple[type[N], ...]
-
 class ParentMap(HookProvider, DescriptorHelper):
     def get_hook(self) -> Hook: ...
     def __get__(
@@ -20,7 +18,7 @@ class PureNodeVisitHook[
 ](HookProvider, DescriptorHelper):
     def __init__(
         self,
-        node_types: NodeTypes[N],
+        node_types: type[N] | tuple[type[N], ...],
         func: Callable[[VisitorT, N], Any] | Callable[[VisitorT], Any],
         mode: HookMode = "before",
         #
@@ -36,5 +34,6 @@ def pure_visit[VisitorT: ast.NodeVisitor, N: ast.AST, *Args, Kwargs: dict](
     before: tuple[str, ...] = (),
     after: tuple[str, ...] = (),
 ) -> Callable[
-    [Callable[[VisitorT, N], Any] | Callable[[VisitorT, N, MatchResult], Any]], Any
+    [Callable[[VisitorT, N], Any] | Callable[[VisitorT, N, MatchResult], Any]],
+    PureNodeVisitHook[VisitorT, N],
 ]: ...
