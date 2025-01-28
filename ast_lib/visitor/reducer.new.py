@@ -1,15 +1,11 @@
 # Synced by scripts/sync_visitor_with_pyi.py with reducer.proto.pyi
 
-
-# Synced by scripts/sync_visitor_with_pyi.py with reducer.proto.pyi
-# TODO: multiple map
-# TODO: return key-value pair in map collector
-# TODO: visitor_type, return_type
-
 from __future__ import annotations
+
 import ast
 from typing import Callable, Generator, Literal, TypedDict, Unpack, cast
-from ..match_pattern import MATCH_TYPE_HINT_DEFAULT, MatchResult, MatchTypeHint
+
+from ..match_pattern import MATCH_TYPE_HINT_DEFAULT, MatchTypeHint
 from .core import Hook, HookProvider
 from .exception import SkipNode
 from .utils import DescriptorHelper, invoke_callback
@@ -21,15 +17,17 @@ from .utils import DescriptorHelper, invoke_callback
 type ReducerHookMode = Literal["before", "after"]
 type NodeTypes[N] = type[N] | tuple[type[N], ...]
 type InitialValue[T] = Callable[[], T] | T
-type GetValue[VisitorT, N: ast.AST, T, *Args, Kwargs: dict] = (
+type GetValue[VisitorT, N, T, *Args, Kwargs: dict] = (
     Callable[[N], T]
+    | Callable[[N, *Args, Kwargs], T]
     | Callable[[VisitorT, N], T]
-    | Callable[[VisitorT, N, MatchResult[N, *Args, Kwargs]], T]
+    | Callable[[VisitorT, N, *Args, Kwargs], T]
 )
-type Reducer[VisitorT, N: ast.AST, T, *Args, Kwargs: dict] = (
+type Reducer[VisitorT, N, T, *Args, Kwargs: dict] = (
     Callable[[T, N], T]
+    | Callable[[T, N, *Args, Kwargs], T]
     | Callable[[VisitorT, T, N], T]
-    | Callable[[VisitorT, T, N, MatchResult[N, *Args, Kwargs]], T]
+    | Callable[[VisitorT, T, N, *Args, Kwargs], T]
 )
 
 
@@ -40,7 +38,7 @@ class PartialReducerOptions[
 ](TypedDict, total=False):
     mode: ReducerHookMode
     before: tuple[str, ...]
-    pattern: str | None
+    patterns: list[str] | None
     match_type_hint: MatchTypeHint[N, *Args, Kwargs]
 
 
@@ -51,7 +49,7 @@ class ReducerOptions[
 ](TypedDict, total=True):
     mode: ReducerHookMode
     before: tuple[str, ...]
-    pattern: str | None
+    patterns: list[str] | None
     match_type_hint: MatchTypeHint[N, *Args, Kwargs]
 
 
@@ -62,11 +60,13 @@ class ReducerOptions[
 _DEFAULT_OPTIONS: ReducerOptions = {
     "mode": "before",
     "before": (),
-    "pattern": None,
+    "patterns": None,
     "match_type_hint": MATCH_TYPE_HINT_DEFAULT,
 }
 
 # ------------------------------- Base Reducer ------------------------------- #
+# TODO: raise error
+# TODO: Use TypedDict?
 
 
 class NodeReducer[
@@ -105,12 +105,10 @@ class NodeReducer[
                 value = cast(T, self.initial_value)
             self._set_attr(instance, "value", value)
 
-        def func(instance: ast.NodeVisitor, node: ast.AST, match_result: MatchResult):
+        def func(instance: ast.NodeVisitor, node: ast.AST):
             prev_value = self._get_attr(instance, "value")
             try:
-                value = invoke_callback(
-                    self.reducer, instance, prev_value, node, match_result=match_result
-                )
+                value = invoke_callback(self.reducer, instance, prev_value, node)
             except SkipNode:
                 return
             self._set_attr(instance, "value", value)
@@ -121,23 +119,21 @@ class NodeReducer[
             func,
             setup=setup,
             before=self.options.get("before", _DEFAULT_OPTIONS["before"]),
-            pattern=self.options.get("patterns", _DEFAULT_OPTIONS["pattern"]),
+            pattern=self.options.get("patterns", _DEFAULT_OPTIONS["patterns"]) or [],
         )
 
 
-def node_reducer[VisitorT: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
+def node_reducer[Visitor: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
     *node_types: type[N],
     initial_value: InitialValue[T],
     **kwargs: Unpack[PartialReducerOptions],
     # return_type: type[T]
     # | None = None,  # only used for type hint
 ) -> Callable[
-    [Reducer[VisitorT, N, T, *Args, Kwargs]], NodeReducer[VisitorT, N, T, *Args, Kwargs]
+    [Reducer[Visitor, N, T, *Args, Kwargs]], NodeReducer[Visitor, N, T, *Args, Kwargs]
 ]:
-    def decorator(reducer: Reducer[VisitorT, N, T, *Args, Kwargs]):
-        return NodeReducer[VisitorT, N, T, *Args, Kwargs](
-            node_types, initial_value, reducer, **kwargs
-        )
+    def decorator(reducer: Reducer[Visitor, N, T]):
+        return NodeReducer[Visitor, N, T](node_types, initial_value, reducer, **kwargs)
 
     return decorator
 
@@ -146,25 +142,21 @@ def node_reducer[VisitorT: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
 
 
 class NodeListCollector[
-    VisitorT: ast.NodeVisitor,
+    Visitor: ast.NodeVisitor,
     N: ast.AST,
     Value,
     *Args,
     Kwargs: dict,
-](NodeReducer[VisitorT, N, list[Value], *Args, Kwargs]):
+](NodeReducer[Visitor, N, list[Value], *Args, Kwargs]):
     def __init__(
         self,
         node_types: NodeTypes[N],
-        get_value: GetValue[VisitorT, N, Generator[Value] | Value, *Args, Kwargs],
+        get_value: GetValue[Visitor, N, Generator[Value] | Value, *Args, Kwargs],
         **kwargs: Unpack[PartialReducerOptions],
         #
     ):
-        def reducer(
-            instance: VisitorT, acc: list[Value], node: N, match_result: MatchResult
-        ) -> list[Value]:
-            value = invoke_callback(
-                get_value, instance, node, match_result=match_result
-            )
+        def reducer(instance: Visitor, acc: list[Value], node: N) -> list[Value]:
+            value = invoke_callback(get_value, instance, node)
             if isinstance(value, Generator):
                 return acc + list(value)
             return acc + [value]
@@ -178,7 +170,7 @@ class NodeListCollector[
 
 
 def nodelist_collector[
-    VisitorT: ast.NodeVisitor,
+    Visitor: ast.NodeVisitor,
     N: ast.AST,
     Value,
     *Args,
@@ -188,12 +180,12 @@ def nodelist_collector[
     **kwargs: Unpack[PartialReducerOptions],
     #
 ) -> Callable[
-    [GetValue[VisitorT, N, Generator[Value] | Value, *Args, Kwargs]],
-    NodeListCollector[VisitorT, N, Value, *Args, Kwargs],
+    [GetValue[Visitor, N, Generator[Value] | Value, *Args, Kwargs]],
+    NodeListCollector[Visitor, N, Value, *Args, Kwargs],
 ]:
     def decorator(
         # TODO
-        get_value: GetValue[VisitorT, N, Value | Generator[Value], *Args, Kwargs],
+        get_value: GetValue[Visitor, N, Value | Generator[Value]],
     ):
         return NodeListCollector(node_types, get_value, **kwargs)
 
@@ -204,49 +196,37 @@ def nodelist_collector[
 
 
 class NodeSetCollector[
-    VisitorT: ast.NodeVisitor,
+    Visitor: ast.NodeVisitor,
     N: ast.AST,
     Value,
     *Args,
     Kwargs: dict,
-](NodeReducer[VisitorT, N, set[Value], *Args, Kwargs]):
+](NodeReducer[Visitor, N, set[Value], *Args, Kwargs]):
     def __init__(
         self,
         node_types: NodeTypes[N],
-        get_value: GetValue[VisitorT, N, Generator[Value] | Value, *Args, Kwargs],
+        get_value: GetValue[Visitor, N, Generator[Value] | Value, *Args, Kwargs],
         **kwargs: Unpack[PartialReducerOptions],
         #
     ):
-        def reducer(
-            instance: VisitorT, acc: set[Value], node: N, match_result: MatchResult
-        ) -> set[Value]:
-            value = invoke_callback(
-                get_value, instance, node, match_result=match_result
-            )
-            if isinstance(value, Generator):
-                return acc | set(value)
-            return acc | {value}
-
-        super().__init__(node_types, lambda: set(), reducer, **kwargs)
+        super().__init__(
+            node_types,
+            lambda: set(),
+            lambda instance, acc, node: acc
+            | {invoke_callback(get_value, instance, node)},
+            **kwargs,
+        )
 
 
-def nodeset_collector[
-    VisitorT: ast.NodeVisitor,
-    N: ast.AST,
-    Value,
-    *Args,
-    Kwargs: dict,
-](
+def nodeset_collector[Visitor: ast.NodeVisitor, N: ast.AST, Value, *Args, Kwargs: dict](
     *node_types: type[N],
     **kwargs: Unpack[PartialReducerOptions],
     #
 ) -> Callable[
-    [GetValue[VisitorT, N, Generator[Value] | Value, *Args, Kwargs]],
-    NodeSetCollector[VisitorT, N, Value, *Args, Kwargs],
+    [GetValue[Visitor, N, Generator[Value] | Value, *Args, Kwargs]],
+    NodeSetCollector[Visitor, N, Value, *Args, Kwargs],
 ]:
-    def decorator(
-        get_value: GetValue[VisitorT, N, Generator[Value] | Value, *Args, Kwargs],
-    ):
+    def decorator(get_value: GetValue[Visitor, N, Value]):
         return NodeSetCollector(node_types, get_value, **kwargs)
 
     return decorator
@@ -256,18 +236,18 @@ def nodeset_collector[
 
 
 class NodeMapCollector[
-    VisitorT: ast.NodeVisitor,
+    Visitor: ast.NodeVisitor,
     N: ast.AST,
     Key,
     Value,
     *Args,
     Kwargs: dict,
-](NodeReducer[VisitorT, N, dict[Key, Value], *Args, Kwargs]):
+](NodeReducer[Visitor, N, dict[Key, Value], *Args, Kwargs]):
     def __init__(
         self,
         node_types: NodeTypes[N],
-        get_value: GetValue[VisitorT, N, Value, *Args, Kwargs],
-        get_key: GetValue[VisitorT, N, Key, *Args, Kwargs] = lambda node: node,
+        get_value: GetValue[Visitor, N, Value, *Args, Kwargs],
+        get_key: GetValue[Visitor, N, Key, *Args, Kwargs] = lambda node: node,
         **kwargs: Unpack[PartialReducerOptions],
         # default_value: Value,
         #
@@ -275,22 +255,17 @@ class NodeMapCollector[
         #
     ):
         def reducer(
-            instance: VisitorT,
-            acc: dict[Key, Value],
-            node: N,
-            match_result: MatchResult,
+            instance: Visitor, acc: dict[Key, Value], node: N
         ) -> dict[Key, Value]:
-            key = invoke_callback(get_key, instance, node, match_result=match_result)
-            value = invoke_callback(
-                get_value, instance, node, match_result=match_result
-            )
+            key = invoke_callback(get_key, instance, node)
+            value = invoke_callback(get_value, instance, node)
             return acc | {key: value}
 
         super().__init__(node_types, lambda: dict(), reducer, **kwargs)
 
 
 def nodemap_collector[
-    VisitorT: ast.NodeVisitor,
+    Visitor: ast.NodeVisitor,
     N: ast.AST,
     Key,
     Value,
@@ -298,16 +273,16 @@ def nodemap_collector[
     Kwargs: dict,
 ](
     *node_types: type[N],
-    get_key: GetValue[VisitorT, N, Key, *Args, Kwargs] = lambda node: node,
+    get_key: GetValue[Visitor, N, Key, *Args, Kwargs] = lambda node: node,
     **kwargs: Unpack[PartialReducerOptions],
     #
     # type: ignore
     #
 ) -> Callable[
-    [GetValue[VisitorT, N, Value, *Args, Kwargs]],
-    NodeMapCollector[VisitorT, N, Key, Value, *Args, Kwargs],
+    [GetValue[Visitor, N, Value, *Args, Kwargs]],
+    NodeMapCollector[Visitor, N, Key, Value, *Args, Kwargs],
 ]:
-    def decorator(get_value: GetValue[VisitorT, N, Value, *Args, Kwargs]):
+    def decorator(get_value: GetValue[Visitor, N, Value]):
         return NodeMapCollector(node_types, get_value, get_key, **kwargs)
 
     return decorator

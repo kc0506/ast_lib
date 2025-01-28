@@ -36,6 +36,5 @@ def pure_visit[VisitorT: ast.NodeVisitor, N: ast.AST, *Args, Kwargs: dict](
     before: tuple[str, ...] = (),
     after: tuple[str, ...] = (),
 ) -> Callable[
-    [Callable[[VisitorT, N], Any] | Callable[[VisitorT, N, MatchResult], Any]],
-    PureNodeVisitHook[VisitorT, N],
+    [Callable[[VisitorT, N], Any] | Callable[[VisitorT, N, MatchResult], Any]], Any
 ]: ...

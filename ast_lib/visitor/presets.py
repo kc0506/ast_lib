@@ -1,6 +1,7 @@
 """"""
 
 # TODO: indent level
+# TODO: qualname
 
 from __future__ import annotations
 
@@ -11,8 +12,9 @@ from typing import (
     Callable,
 )
 
+from ..match_pattern import MatchResult
 from .core import Hook, HookMode, HookProvider
-from .utils import DescriptorHelper
+from .utils import DescriptorHelper, invoke_callback
 
 
 class ParentMap(HookProvider, DescriptorHelper):
@@ -22,7 +24,7 @@ class ParentMap(HookProvider, DescriptorHelper):
             self._set_attr(instance, "parent_map", dict())
 
         @contextmanager
-        def func(instance: ast.NodeVisitor, node: ast.AST):
+        def func(instance: ast.NodeVisitor, node: ast.AST, _: MatchResult):
             prev = self._get_attr(instance, "current_node")
             self._set_attr(
                 instance,
@@ -49,16 +51,21 @@ class PureNodeVisitHook(HookProvider):
     def __init__(
         self,
         node_types: tuple[type[ast.AST], ...],
-        func: Callable[[ast.NodeVisitor, ast.AST], Any],
+        func: Callable[[ast.NodeVisitor, ast.AST, MatchResult], Any],
         mode: HookMode = "before",
         #
         before: tuple[str, ...] = (),
         after: tuple[str, ...] = (),
     ):
+        def hook_func(
+            instance: ast.NodeVisitor, node: ast.AST, match_result: MatchResult
+        ):
+            return invoke_callback(func, instance, node, match_result=match_result)
+
         self.hook = Hook(
             node_types,
             mode,
-            func,
+            hook_func,
             setup=None,
             before=before,
             after=after,

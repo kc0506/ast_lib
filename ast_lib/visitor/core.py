@@ -15,6 +15,7 @@ from __future__ import annotations
 import ast
 from abc import abstractmethod
 from collections import defaultdict
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Callable,
@@ -26,9 +27,7 @@ from typing import (
     runtime_checkable,
 )
 
-from pydantic import Field
-from pydantic.dataclasses import dataclass
-
+from ast_lib.match_pattern import MatchResult
 from ast_lib.pattern import parse_pattern
 
 from .. import nodes
@@ -37,18 +36,31 @@ from .exception import SkipVisit
 type HookMode = Literal["before", "after", "wrap"]
 
 
+class HookFunc(Protocol):
+    def __call__(
+        self,
+        instance: ast.NodeVisitor,
+        node: ast.AST,
+        match_result: MatchResult,
+    ) -> Any: ...
+
+
 @dataclass
 class Hook:
     node_types: tuple[type[ast.AST], ...]
     mode: HookMode
-    func: Callable[[ast.NodeVisitor, ast.AST], Any]  # TODO: fix __name__
+    # func: Callable[[ast.NodeVisitor, ast.AST], Any]  # TODO: fix __name__
+    # func: HookFunc
+    func: Callable[[ast.NodeVisitor, ast.AST, MatchResult], Any]
     #
     setup: Callable[[ast.NodeVisitor], None] | None = None
     before: tuple[str, ...] = ()  # TODO: just single `deps`?
     after: tuple[str, ...] = ()
-    patterns: list[str] = Field(default_factory=list)  # TODO: type hint for decorators
+    # patterns: list[str] = field(default_factory=list)  # TODO: type hint for decorators
+    pattern: str | None = None  # TODO: type hint for decorators
     #
-    name: str | None = Field(init=False)
+    name: str | None = field(init=False)
+    pattern_node: nodes.AST | None = field(init=False, default=None)
 
 
 # TODO: single or multiple? parent map?
@@ -130,6 +142,27 @@ def solve_hook_order(hooks: dict[str, Hook]) -> list[HookEvent]:
     return reversed_hooks[::-1]
 
 
+# def get_hook_groups(
+#     hook: Hook, node: ast.AST
+# ) -> tuple[tuple[Any, ...], dict[str, Any]] | None:
+#     all_matched = True
+#     groups = []
+#     kw_groups = {}
+#     for pattern in hook.pattern:
+#         # pattern_node = parsed_pattern_cache.get((name, pattern), parse_pattern(pattern))
+#         pattern_node = parse_pattern(pattern)
+#         if not (result := pattern_node.match(node)):
+#             all_matched = False
+#             break
+
+#         groups.extend(result.args)
+#         kw_groups.update(result.kwargs)
+
+#     if not all_matched:
+#         return None
+#     return tuple(groups), kw_groups
+
+
 class BaseNodeVisitor(ast.NodeVisitor):
     __visit_hook_map__: ClassVar[dict[str, Hook]] = {}
     __visit_hook_events__: ClassVar[list[HookEvent]] = []
@@ -141,6 +174,7 @@ class BaseNodeVisitor(ast.NodeVisitor):
             for obj_name, obj in base.__dict__.items():
                 if isinstance(obj, HookProvider):
                     hooks_map[obj_name] = obj.get_hook()
+                    hooks_map[obj_name].name = obj_name
 
         cls.__visit_hook_map__ = hooks_map
         cls.__visit_hook_events__ = solve_hook_order(hooks_map)
@@ -162,35 +196,27 @@ class BaseNodeVisitor(ast.NodeVisitor):
         exit_names = [hook.name for hook in visit_events if hook.type == "exit"]
         wrap_contexts: dict[str, ContextManager] = {}
 
-        parsed_pattern_cache: dict[tuple[str, str], nodes.AST] = {}
+        # parsed_pattern_cache: dict[tuple[str, str], nodes.AST] = {}
 
         for name in enter_names:
             hook = self.__visit_hook_map__[name]
             if not isinstance(node, hook.node_types):
                 continue
 
-            all_matched = True
-            args = []
-            kwargs = {}
-            for pattern in hook.patterns:
-                pattern_node = parsed_pattern_cache.get(
-                    (name, pattern), parse_pattern(pattern)
-                )
-                if not (result := pattern_node.match(node)):
-                    all_matched = False
-                    break
-
-                args.extend(result.args)
-                kwargs.update(result.kwargs)
-
-            if not all_matched:
+            if hook.pattern is None:
+                match_result = MatchResult(node, tuple(), {})
+            else:
+                if hook.pattern_node is None:
+                    hook.pattern_node = parse_pattern(hook.pattern)
+                match_result = hook.pattern_node.match(node)
+            if match_result is None:
                 continue
 
             try:
                 if hook.mode == "before":
-                    hook.func(self, node)
+                    hook.func(self, node, match_result)
                 elif hook.mode == "wrap":
-                    ctx = hook.func(self, node, *args, **kwargs)
+                    ctx = hook.func(self, node, match_result)
                     if not isinstance(ctx, ContextManager):
                         raise ValueError(
                             f"Hook {hook} with mode 'wrap' must return a context manager"
@@ -212,8 +238,18 @@ class BaseNodeVisitor(ast.NodeVisitor):
             hook = self.__visit_hook_map__[name]
             if not isinstance(node, hook.node_types):
                 continue
+
+            if hook.pattern is None:
+                match_result = MatchResult(node, tuple(), {})
+            else:
+                if hook.pattern_node is None:
+                    hook.pattern_node = parse_pattern(hook.pattern)
+                match_result = hook.pattern_node.match(node)
+            if match_result is None:
+                continue
+
             if hook.mode == "after":
-                hook.func(self, node)
+                hook.func(self, node, match_result)
             elif hook.mode == "wrap":
                 ctx = wrap_contexts[name]
                 ctx.__exit__(None, None, None)

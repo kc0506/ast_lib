@@ -1,4 +1,3 @@
-
 if __name__ == "__main__":
     # todo: S-type, L-type
 

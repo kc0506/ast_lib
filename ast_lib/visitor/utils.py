@@ -2,17 +2,50 @@ from __future__ import annotations
 
 import ast
 import inspect
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from ..match_pattern import MatchResult
 
 
-def call_with_optional_self[R](func: Callable[..., R], *args) -> R:
+def check_callback_signature(
+    func: Callable[..., Any],
+    num_args: int,
+):
     sig = inspect.signature(func)
-    if len(sig.parameters) == len(args):
-        return func(*args)
+    for name, param in sig.parameters.items():
+        if param.kind == (
+            inspect.Parameter.KEYWORD_ONLY,
+            inspect.Parameter.VAR_KEYWORD,
+            inspect.Parameter.VAR_POSITIONAL,
+        ):
+            raise ValueError(f"Invalid parameter kind of {name}: {param.kind}")
 
-    assert len(sig.parameters) == len(args) - 1
-    _, *args = args
-    return func(*args)
+    params = list(sig.parameters.values())
+    if len(params) not in range(
+        num_args, num_args + 3
+    ):  # (*args), (self, *args), (self, *args, match_result)
+        raise ValueError(f"Expected {num_args} arguments, got {len(params)}")
+
+
+def invoke_callback[R](
+    func: Callable[..., R],
+    self: ast.NodeVisitor,
+    *args: Any,
+    match_result: MatchResult,
+) -> R:
+    sig = inspect.signature(func)
+    num_params = len(sig.parameters)
+    check_callback_signature(func, num_params)
+
+    if num_params == len(args):
+        return func(*args)
+    if num_params == len(args) + 1:
+        return func(self, *args)
+    if num_params == len(args) + 2:
+        return func(self, *args, match_result)
+
+    raise ValueError(f"Expected {num_params} arguments, got {len(args)}")
 
 
 class DescriptorHelper:
