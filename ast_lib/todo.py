@@ -10,14 +10,14 @@
 
 # ? Can we not matching from the root?
 
-from typing import Callable, Unpack
+# vistor.disable_hooks()
+# pass `set_transformed`, `cancel` etc. to hooks
+# use matched later
+# .match_type() method on @node_context etc.
+# use regex for name 
+# grouped pattern, e.g. $() 
+# use || for union
 
-from rich import print
-
-
-# 1. pass args to reducers 
-# 2. return node from match
 # 3. syntax for args; not provided => empty or wildcard? decorators?
 # 4. match_all, instance filter
 # 5. chain
-
