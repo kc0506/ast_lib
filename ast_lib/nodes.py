@@ -24,11 +24,12 @@ from typing import (
     TypedDict,
     Unpack,
     cast,
+    overload,
 )
 
 if TYPE_CHECKING:
     from .match_pattern import MatchResult, MatchTypeHint
-from ast_lib.utils import parse_as_stmt
+from ast_lib.utils import parse_as_expr, parse_as_stmt
 
 type _Identifier = str
 type _Pattern = pattern
@@ -77,23 +78,61 @@ class AST:
     def ast_class(self) -> type[ast.AST]:
         return ast.__dict__[type(self).__name__]
 
-    def match[*T, K: dict](
-        self,
-        target: ast.AST | str,
-        type_hint: MatchTypeHint[*T, K] | None = None,
-    ) -> MatchResult[*T, K] | None:
-        from .match_pattern import match_node
-
-        if isinstance(target, str):
-            target = parse_as_stmt(target)
-        if type_hint is None:
-            return match_node(self, target)  # pyright: ignore
-        return match_node(self, target, type_hint)
-
     # if not TYPE_CHECKING:
     def replace(self, **kwargs) -> Self:
         cls = type(self)
         return cls(**self.field_dict, **kwargs)
+
+    @overload
+    def match[*T, K: dict](
+        self,
+        target: ast.AST | str,
+        *,
+        assert_match: Literal[True],
+        type_hint: MatchTypeHint[N, *T, K] | None = None,
+    ) -> MatchResult[N, *T, K]: ...
+
+    @overload
+    def match[*T, K: dict](
+        self,
+        target: ast.AST | str,
+        *,
+        assert_match: Literal[False] = False,
+        type_hint: MatchTypeHint[N, *T, K] | None = None,
+    ) -> MatchResult[N, *T, K] | None: ...
+
+    @overload
+    def match[*T, K: dict](
+        self,
+        target: ast.AST | str,
+        *,
+        assert_match: Literal[False] | Literal[True] = False,
+        type_hint: MatchTypeHint[N, *T, K] | None = None,
+    ) -> MatchResult[N, *T, K] | None:
+        from .match_pattern import match_node
+
+        if isinstance(target, str):
+            if isinstance(self, expr):
+                target = parse_as_expr(target)
+            elif isinstance(self, stmt):
+                target = parse_as_stmt(target)
+            else:
+                target = ast.parse(target)
+        assert_match = cast(Literal[False], assert_match)
+        if type_hint is None:
+            res = match_node(
+                self,
+                target,
+                assert_match=assert_match,
+            )
+        else:
+            res = match_node(
+                self,
+                target,
+                assert_match=assert_match,
+                match_type_hint=type_hint,
+            )
+        return cast(MatchResult[N, *T, K] | None, res)
 
 
 AST.__hash__ = object.__hash__
