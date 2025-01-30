@@ -40,6 +40,12 @@ gen-testcase:
 	uv run ruff format ast_lib/testcase_generator.py
 	uv run ruff check ast_lib/testcase_generator.py --fix
 
+
+.PHONY: typecheck
+typecheck:
+	uv run pyright ast_lib/
+
+
 .PHONY: test-types
 test-types:
 	uv run pyright tests/test_types.py
@@ -53,4 +59,12 @@ test:
 .PHONY: test-visitor
 test-visitor:
 	uv run pytest tests/visitor/
+
+.PHONY: test-patterns
+test-patterns:
+	uv run -m pytest tests/test_patterns.py -x
+
+.PHONY: test-match
+test-match:
+	uv run -m pytest ./tests/test_match_pattern.py -x
 

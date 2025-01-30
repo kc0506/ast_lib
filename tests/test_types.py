@@ -1,10 +1,11 @@
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false, reportUnusedClass=false
+# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false, reportUnusedClass=false, reportUnnecessaryComparison=false
 from __future__ import annotations
 
 import ast
-from typing import Generator, assert_type
+from typing import Any, Generator, Mapping, TypedDict, assert_never, assert_type
 
-from ast_lib.match_pattern import MatchResult, MatchTypeHint
+from ast_lib import nodes
+from ast_lib.match_pattern import MatchResult, MatchTypeHint, match_node
 from ast_lib.visitor.context import NodeContextVar, node_context
 from ast_lib.visitor.core import BaseNodeVisitor
 from ast_lib.visitor.presets import pure_visit
@@ -134,3 +135,33 @@ def test_reducer():
     assert_type(Visitor().func, int)
     assert_type(Visitor().func_list, list[ast.FunctionDef])
     assert_type(Visitor().func_map, dict[str, ast.FunctionDef])
+
+
+def test_match_pattern():
+    node = nodes.Attribute()
+    x = node.match("foo.bar")
+    if x is not None:
+        assert_type(x.node, ast.Attribute)
+    else:
+        assert_type(x, None)
+    y = node.match("foo.bar", assert_match=True)
+    if y is not None:
+        assert_type(y.node, ast.Attribute)
+        assert_type(y.groups, tuple[Any, ...])
+        assert_type(y.kw_groups, Mapping[str, Any])
+    else:
+        assert_never(y)
+
+    class C(TypedDict):
+        a: int
+        b: str
+
+    z = node.match(
+        "foo.bar",
+        assert_match=True,
+        groups_hint=tuple[int, str],  # TODO: why syntax highlight breaks
+        kw_groups_hint=C,
+    )
+    assert_type(z.groups, tuple[int, str])
+    assert_type(z.kw_groups, C)
+    assert_type(z.kw_groups["a"], int)
