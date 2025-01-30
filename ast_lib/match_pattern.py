@@ -151,14 +151,14 @@ def _match_node(
     return True
 
 
-@dataclass
+@dataclass(frozen=True)
 class MatchResult[N: ast.AST, *T, K: dict]:
     node: N
-    args: tuple[*T]
-    kwargs: K
+    groups: tuple[*T]
+    kw_groups: K
 
     def to_tuple(self) -> tuple[N, *T, K]:
-        return (self.node, *self.args, self.kwargs)
+        return (self.node, *self.groups, self.kw_groups)
 
 
 class MatchTypeHint[N: ast.AST, *T, K: dict]:
@@ -212,7 +212,7 @@ def match_node[N: ast.AST, *T, K: dict](
         for k in int_keys:
             args[k] = captures.pop(k)
 
-        return cast(Any, MatchResult(node=target, args=tuple(args), kwargs=captures))
+        return cast(Any, MatchResult(node=target, groups=tuple(args), kw_groups=captures))
 
     if assert_match:
         raise ValueError(
