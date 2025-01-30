@@ -408,11 +408,30 @@ class Visitor(BaseNodeVisitor):
         if self.EXCLUDE_TRANSFORM_BASES & set(ancestors):
             return
 
+        # 1. basic class def
         node.decorator_list = [parse_as_expr("dataclass(frozen=True)")]
         node.body = cast(list[ast.stmt], self.ast_fields.copy())
-        if node.name in CUSTOM_BASES:
-            node.bases.append(parse_as_expr(f"_{node.name}"))
 
+        # TODO: add
+        assert len(node.bases) == 1 and isinstance(node.bases[0], ast.Name)
+        if node.name in CUSTOM_BASES:
+            node.bases.append(parse_as_expr(f"_{node.name}_utils"))
+
+        # node_impl = copy.copy(node)
+        # body = node_impl.body = []
+        body = node.body
+        # node.bases.append(parse_as_expr(f"Matchable[ast.{node.name}]"))
+        body.append(
+            ast.If(
+                test=parse_as_expr("TYPE_CHECKING"),
+                body=[
+                    parse_as_stmt(f"match: Matchable[ast.{node.name}]=field(init=False)"),
+                ],
+                orelse=[],
+            )
+        )
+
+        # 2. transform fields
         assert node.name in ast.__dict__
         fields = ast.__dict__[node.name]._fields
         ast_field_names = {ast.unparse(f.target) for f in self.ast_fields}
@@ -422,14 +441,14 @@ class Visitor(BaseNodeVisitor):
         fields_ann = parse_as_stmt(
             f"_field_names: ClassVar[tuple[str, ...]]={repr(fields)}"
         )
-        node.body.append(fields_ann)
-
-        node.body.append(
+        body.append(fields_ann)
+        body.append(
             parse_as_stmt(
                 f"_child_fields: ClassVar[tuple[str, ...]]={repr(tuple(self.child_fields))}"
             )
         )
 
+        # 3. `replace()`
         args_typeddict_name = f"{node.name}Args"
         args_typeddict: ast.ClassDef = parse_as_stmt(
             f"class {args_typeddict_name}(TypedDict, total=False): ...", ast.ClassDef
@@ -441,7 +460,7 @@ class Visitor(BaseNodeVisitor):
             args_typeddict.body.append(field)
         if not args_typeddict.body:
             args_typeddict.body.append(parse_as_stmt("pass"))
-        node.body.append(args_typeddict)
+        body.append(args_typeddict)
 
         replace_args = ast.arguments(
             posonlyargs=[],
@@ -465,9 +484,23 @@ class Visitor(BaseNodeVisitor):
             type_params=[],
         )
 
-        node.body.append(ast.fix_missing_locations(replace_fn))
+        body.append(ast.fix_missing_locations(replace_fn))
+
+        # 4. Complete impl
+        base_name = node.bases[0].id
+
+        # if base_name == "AST":
+        #     # node.bases.pop(0)
+        #     pass
+        # else:
+        #     node.bases[0].id = f"_{base_name}"
+
+        # node_impl.bases = [parse_as_expr(f"_{node.name}"),parse_as_expr(f"AST[ast.{node.name}]")]
+        # node.name = f"_{node.name}"
+        node.body = node.body or [ast.Pass()]
 
         self.print(ast.unparse(node))
+        # self.print(ast.unparse(node_impl))
 
         return node
 

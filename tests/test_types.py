@@ -165,3 +165,5 @@ def test_match_pattern():
     assert_type(z.groups, tuple[int, str])
     assert_type(z.kw_groups, C)
     assert_type(z.kw_groups["a"], int)
+
+    assert_type(nodes.Wildcard().match("foo.bar", assert_match=True).node, ast.AST)

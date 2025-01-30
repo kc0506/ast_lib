@@ -151,8 +151,9 @@ def _match_node(
     return True
 
 
+# todo: covariant? Mapping?
 @dataclass(frozen=True)
-class MatchResult[N: ast.AST, *T, K: dict]:
+class MatchResult[N: ast.AST, *T, K]:
     node: N
     groups: tuple[*T]
     kw_groups: K
@@ -208,7 +209,7 @@ def match_node[N: ast.AST, *T, K: dict](
         if int_keys:
             assert int_keys == list(range(min(int_keys), max(int_keys) + 1))
 
-        args: Any = [None] * len(int_keys) + [captures]
+        args: Any = [None] * len(int_keys)  
         for k in int_keys:
             args[k] = captures.pop(k)
 
