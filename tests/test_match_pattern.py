@@ -90,7 +90,10 @@ def test_match_pattern():
     captured = io.StringIO()
     with redirect_stderr(captured):
         logger.add(
-            sys.stderr, level="DEBUG", format="{message}", filter="ast_lib.match_pattern"
+            sys.stderr,
+            level="DEBUG",
+            format="{message}",
+            filter="ast_lib.match_pattern",
         )
 
         # with nullcontext():

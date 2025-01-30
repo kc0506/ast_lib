@@ -97,8 +97,8 @@ stmt[stmt]:
     | expr_stmt
 
 function_def[FunctionDef]:
-    # | d=decorators?  'def'  n=id  '('  a=args?  ')'  ellipsis? { FunctionDef(name=n, decorator_list=d or [], args=a or arguments.make_empty()) }
-    | d=decorators?  'def'  n=id  '('  a=args?  ')'  ellipsis? { FunctionDef(name=n, decorator_list=d or [], args=a or Wildcard()) }
+    | d=decorators?  'def'  n=id  '('  a=args?  ')'  ellipsis? { FunctionDef(name=n, decorator_list=d or [], args=a or arguments.make_empty()) }
+    # | d=decorators?  'def'  n=id  '('  a=args?  ')'  ellipsis? { FunctionDef(name=n, decorator_list=d or [], args=a or Wildcard()) }
 
 async_function_def[AsyncFunctionDef]:
     | d=decorators?  'async'  'def'  n=id  '('  a=args?  ')'  ellipsis? { AsyncFunctionDef(name=n, decorator_list=d or [], args=a or arguments.make_empty()) }
@@ -142,13 +142,45 @@ decorator[ASTPattern[expr]]:
 class_bases[list[ASTPattern[expr]]]: 
     | '('  e=exprs  ')' {e}
 
-exprs[list[ASTPattern[expr]]]:
-    | e=','.expr+ ','? {e}
-
 args[arguments]: exprs
 
+ellipsis[Any]:
+    | ':'  '...'
+    | ':'
+
+# ------------------------------- Expressions ------------------------------ #
+
+exprs[list[ASTPattern[expr]]]:
+    | a[list[ASTPattern[expr]]]=','.expr+ ','? { a }
+
 expr[ASTPattern[expr]]:
+    | a=disjunction 'if' b=disjunction 'else' c=expr { IfExp(a,b,c) }
     | disjunction
+    | lambdef
+
+yield_expr[ASTPattern[expr]]:
+    | 'yield' 'from' a=expr { YieldFrom(a) }
+    | 'yield' a=star_exprs? { Yield(a) }
+
+star_exprs[list[ASTPattern[expr]]]:
+    | a=exprs ',' { a }
+
+star_expr[ASTPattern[expr]]:
+    | '*' a=bitwise_or { Starred(a) }
+    | expr
+
+star_named_exprs[list[ASTPattern[expr]]]: a[list[ASTPattern[expr]]]=','.star_named_expr+ ','? { a }
+
+star_named_expr[ASTPattern[expr]]:
+    | '*' a=bitwise_or { Starred(a) }
+    | named_expr
+
+assignment_expr[ASTPattern[expr]]:
+    | a=NAME ':=' ~ b=expr { NamedExpr(target=a, value=b) }
+
+named_expr[ASTPattern[expr]]:
+    | assignment_expr
+    | expr !':='
 
 disjunction[ASTPattern[expr]]:
     | a=conjunction b=('or'  c=conjunction { c })+ { BoolOp(op=Or(), values=[a, *b]) }
@@ -230,58 +262,79 @@ await_primary[ASTPattern[expr]]:
 
 primary[ASTPattern[expr]]:
     | a=primary '.'  b=id { Attribute(value=a, attr=b) }
-    | a=primary '('  args=exprs?  ')' { Call(func=a, args=args or Wildcard()) }
+    | a=primary '('  args=exprs?  ')' { Call(func=a, args=args or []) }
     | a=primary '['  b=expr  ']' { Subscript(value=a, slice=b) }
     | atom
 
 atom[ASTPattern[expr]]:
-    | constant
-    | dict_expr
-    | set_expr
-    | list_expr
-    | tuple_expr
-    | wildcard
     | name_expr
+    | constant
+    | &'(' (tuple | group | genexp)
+    | &'[' (list | listcomp)
+    | &'{' (dict | set | dictcomp | setcomp)
+    | wildcard
+    | wildcard_id
     | c=capture_pattern 
     | c=capture_id { Capture(name=c.name, pattern=expr()) }
-    | w=wildcard_id { Name() }
+
+group[expr_ty]:
+    | '(' a=(yield_expr | named_expr) ')' { a }
 
 
-capture_pattern[Capture[ASTPattern[expr]]]:
-    | c=capture  '{'  pattern=expr  '}' { Capture(name=c['name'], pattern=pattern) }
+# ---------------------------------- Lambda ---------------------------------- #
 
+lambdef: 'never'
+genexp: 'never'
+listcomp: 'never'   
+setcomp: 'never'
+dictcomp: 'never'
 
-list_expr[List]:
-    | '[' a=exprs? ']' { List(elts=a or []) }
+# --------------------------------- Literals --------------------------------- #
 
-tuple_expr[Tuple]:
-    | '(' a=exprs? ')' { Tuple(elts=a or []) }
-
-
-dict_expr[Dict]:
-    | '{'  d=dict  '}' { Dict(keys=d[0], values=d[1]) }
-
-set_expr[Set]:
-    | '{'  e=exprs?  '}' { Set(elts=e or []) }
-
-wildcard[Wildcard]:
-    | '~' { Wildcard() }
-
-dict[tuple[list[ASTPattern[expr|None]], list[ASTPattern[expr]]]]:
-    | head=(k=expr  ':'  v=expr) tail=(','  k=expr  ':'  v=expr)* {
-        _make_dict(head, tail)
-    }
+constant[Constant]:
+    | 'None' { Constant(value=None) }
+    | 'True' { Constant(value=True) }
+    | 'False' { Constant(value=False) }
+    | n=NUMBER { Constant(value=ast.literal_eval(n.string)) }
+    | s=STRING { Constant(value=s.string) }
+    | '...' { Constant(value=...) }
 
 name_expr[Name]:
     | n=NAME { Name(id=n.string) }
+
+tuple[Tuple]:
+    | '(' a=exprs? ')' { Tuple(elts=a or []) }
+
+list[List]:
+    | '[' a=exprs? ']' { List(elts=a or []) }
+
+set[Set]:
+    | '{'  e=exprs?  '}' { Set(elts=e or []) }
+
+# ----------------------------------- Dict ----------------------------------- #
+
+dict[Dict]:
+    | '{'  d=dict  '}' { Dict(keys=d[0], values=d[1]) }
+
+
+# dict[tuple[list[ASTPattern[expr|None]], list[ASTPattern[expr]]]]:
+#     | head=(k=expr  ':'  v=expr) tail=(','  k=expr  ':'  v=expr)* {
+#         _make_dict(head, tail)
+#     }
+
+# ------------------------------- Custom Logic ------------------------------- #
 
 id[Capture[_Identifier]|WildcardId|_Identifier]:
     | capture_id
     | n=NAME { n.string }
     | wildcard_id
+    # | wildcard
 
 capture_id[Capture]:
     | c=capture { Capture(name=c['name'], pattern=WildcardId()) }
+
+wildcard[Wildcard]:
+    | '~' { Wildcard() }
 
 wildcard_id[WildcardId]:
     | '`' { WildcardId() }
@@ -290,13 +343,7 @@ capture[dict[str, str|int]]:
     | '$'  n=NAME { {'name': n.string} }
     | '$'  n=NUMBER { {'name': int(n.string)} }
 
-ellipsis[Any]:
-    | ':'  '...'
-    | ':'
+capture_pattern[Capture[ASTPattern[expr]]]:
+    | c=capture  '{'  pattern=expr  '}' { Capture(name=c['name'], pattern=pattern) }
 
-constant[Constant]:
-    | 'None' { Constant(value=None) }
-    | 'True' { Constant(value=True) }
-    | 'False' { Constant(value=False) }
-    | n=NUMBER { Constant(value=ast.literal_eval(n.string)) }
-    | s=STRING { Constant(value=s.string) }
+

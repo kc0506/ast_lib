@@ -1,51 +1,54 @@
 from dataclasses import dataclass
 
-from .nodes import *
-from .pattern import parse_pattern
+import pytest
+from hypothesis import given
+
+from ast_lib.nodes import *
+from ast_lib.pattern import parse_pattern
 
 
 @dataclass
-class Testcase:
+class Case:
     patterns: list[str]
     expected: AST
 
 
 EXAMPLES = [
     # Simple captures
-    Testcase(
+    Case(
         ["$x"],
         Expr(Capture("x", expr())),
     ),
-    Testcase(
+    Case(
         ["$x{~}"],
         Expr(Capture("x", Wildcard())),
     ),
-    Testcase(
+    Case(
         ["$call{~(~)}"],
         Expr(Capture("call", Call(Wildcard(), [Wildcard()]))),
     ),
-    Testcase(
+    Case(
         ["$attr{~.x}"],
         Expr(Capture("attr", Attribute(Wildcard(), "x"))),
     ),
     # Names and Attributes
-    Testcase(
+    Case(
         ["self.method"],
         Expr(Attribute(Name("self"), "method")),
     ),
-    Testcase(
+    Case(
         ["obj.$attr"],
         Expr(Attribute(Name("obj"), Capture("attr", WildcardId()))),
     ),
-    Testcase(
+    Case(
         ["$obj.method"],
         Expr(Attribute(Capture("obj", expr()), "method")),
     ),
-    Testcase(
+    Case(
         ["$attr{~.method}"],
         Expr(Capture("attr", Attribute(Wildcard(), "method"))),
     ),
-    Testcase(
+    Case(
         ["$chain{~.`.`}"],
         Expr(
             Capture(
@@ -55,54 +58,54 @@ EXAMPLES = [
         ),
     ),
     # Function Calls
-    Testcase(
+    Case(
         ["func()"],
         Expr(Call(Name("func"), [])),
     ),
-    Testcase(
+    Case(
         ["func(arg)"],
         Expr(Call(Name("func"), [Name("arg")])),
     ),
-    Testcase(
+    Case(
         ["func(arg1, arg2)"],
         Expr(Call(Name("func"), [Name("arg1"), Name("arg2")])),
     ),
-    Testcase(
+    Case(
         ["$call{func(~)}"],
         Expr(Capture("call", Call(Name("func"), [Wildcard()]))),
     ),
-    Testcase(
+    Case(
         ["$call{~(x, y)}"],
         Expr(Capture("call", Call(Wildcard(), [Name("x"), Name("y")]))),
     ),
     # Subscripts
-    Testcase(
+    Case(
         ["lst[0]"],
         Expr(Subscript(Name("lst"), Constant(0))),
     ),
-    Testcase(
+    Case(
         ["$sub{lst[~]}"],
         Expr(Capture("sub", Subscript(Name("lst"), Wildcard()))),
     ),
-    Testcase(
+    Case(
         ["$sub{~[index]}"],
         Expr(Capture("sub", Subscript(Wildcard(), Name("index")))),
     ),
-    Testcase(
+    Case(
         ["$sub{~[~]}"],
         Expr(Capture("sub", Subscript(Wildcard(), Wildcard()))),
     ),
     # Assignments
-    Testcase(
+    Case(
         ["x = y"],
         Assign([Name("x")], Name("y")),
     ),
-    Testcase(
+    Case(
         ["x: type = value"],
         AnnAssign(Name("x"), Name("type"), Name("value")),
     ),
     # Compound Examples
-    Testcase(
+    Case(
         ["$call{self.$method(~)}.$attr"],
         Expr(
             Attribute(
@@ -117,7 +120,7 @@ EXAMPLES = [
             )
         ),
     ),
-    Testcase(
+    Case(
         ["$sub{items[~]}.method(~)"],
         Expr(
             Call(
@@ -128,7 +131,7 @@ EXAMPLES = [
             )
         ),
     ),
-    Testcase(
+    Case(
         ["$attr{~.method}($arg{~})"],
         Expr(
             Call(
@@ -137,7 +140,7 @@ EXAMPLES = [
             )
         ),
     ),
-    Testcase(
+    Case(
         ["$chain{~.`.method(~)}"],
         Expr(
             Capture(
@@ -149,11 +152,11 @@ EXAMPLES = [
             )
         ),
     ),
-    Testcase(
+    Case(
         ["await a()"],
         Expr(Await(Call(Name("a"), []))),
     ),
-    Testcase(
+    Case(
         ["def f():..."],
         FunctionDef(
             name="f",
@@ -162,7 +165,7 @@ EXAMPLES = [
             decorator_list=[],
         ),
     ),
-    Testcase(
+    Case(
         ["async def f():..."],
         AsyncFunctionDef(
             name="f",
@@ -171,11 +174,11 @@ EXAMPLES = [
             decorator_list=[],
         ),
     ),
-    Testcase(
+    Case(
         ["$0 .a"],
         Expr(Attribute(Capture(0, expr()), "a")),
     ),
-    Testcase(
+    Case(
         ["$0{self.`[~]}"],
         Expr(
             value=Capture(
@@ -186,11 +189,11 @@ EXAMPLES = [
 ]
 
 
-def test_patterns():
-    for testcase in EXAMPLES[-1:]:
-        for pattern in testcase.patterns:
-            parsed = parse_pattern(pattern)
-            assert parsed == testcase.expected, f"""
+@pytest.mark.parametrize("testcase", EXAMPLES)
+def test_patterns(testcase: Case):
+    for pattern in testcase.patterns:
+        parsed = parse_pattern(pattern)
+        assert parsed == testcase.expected, f"""
 Pattern: {pattern}
 Parsed:  {parsed}
 Expected: {testcase.expected}
@@ -200,7 +203,9 @@ Expected: {testcase.expected}
 if __name__ == "__main__":
     # TODO: validate captures
 
-    test_patterns()
+    # test_patterns()
+    pass
+
     # parser = from_string("{ x*1**2 or 3 and 4+5 , '5', abc}")
     # print(parser.expr())
 

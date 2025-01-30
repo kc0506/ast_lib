@@ -178,7 +178,7 @@ class DSLParser(Parser):
             and
             (self.ellipsis(),)
         ):
-            return FunctionDef ( name = n , decorator_list = d or [] , args = a or Wildcard ( ) );
+            return FunctionDef ( name = n , decorator_list = d or [] , args = a or arguments . make_empty ( ) );
         self._reset(mark)
         return None;
 
@@ -407,19 +407,6 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def exprs(self) -> Optional[list [ASTPattern [expr]]]:
-        # exprs: ','.expr+ ','?
-        mark = self._mark()
-        if (
-            (e := self._gather_4())
-            and
-            (self.expect(','),)
-        ):
-            return e;
-        self._reset(mark)
-        return None;
-
-    @memoize
     def args(self) -> Optional[arguments]:
         # args: exprs
         mark = self._mark()
@@ -431,13 +418,184 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def expr(self) -> Optional[ASTPattern [expr]]:
-        # expr: disjunction
+    def ellipsis(self) -> Optional[Any]:
+        # ellipsis: ':' '...' | ':'
         mark = self._mark()
+        if (
+            (literal := self.expect(':'))
+            and
+            (literal_1 := self.expect('...'))
+        ):
+            return [literal, literal_1];
+        self._reset(mark)
+        if (
+            (literal := self.expect(':'))
+        ):
+            return literal;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def exprs(self) -> Optional[list [ASTPattern [expr]]]:
+        # exprs: ','.expr+ ','?
+        mark = self._mark()
+        if (
+            (a := cast(list [ASTPattern [expr]], self._gather_4()))
+            and
+            (self.expect(','),)
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def expr(self) -> Optional[ASTPattern [expr]]:
+        # expr: disjunction 'if' disjunction 'else' expr | disjunction | lambdef
+        mark = self._mark()
+        if (
+            (a := self.disjunction())
+            and
+            (self.expect('if'))
+            and
+            (b := self.disjunction())
+            and
+            (self.expect('else'))
+            and
+            (c := self.expr())
+        ):
+            return IfExp ( a , b , c );
+        self._reset(mark)
         if (
             (disjunction := self.disjunction())
         ):
             return disjunction;
+        self._reset(mark)
+        if (
+            (lambdef := self.lambdef())
+        ):
+            return lambdef;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def yield_expr(self) -> Optional[ASTPattern [expr]]:
+        # yield_expr: 'yield' 'from' expr | 'yield' star_exprs?
+        mark = self._mark()
+        if (
+            (self.expect('yield'))
+            and
+            (self.expect('from'))
+            and
+            (a := self.expr())
+        ):
+            return YieldFrom ( a );
+        self._reset(mark)
+        if (
+            (self.expect('yield'))
+            and
+            (a := self.star_exprs(),)
+        ):
+            return Yield ( a );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def star_exprs(self) -> Optional[list [ASTPattern [expr]]]:
+        # star_exprs: exprs ','
+        mark = self._mark()
+        if (
+            (a := self.exprs())
+            and
+            (self.expect(','))
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def star_expr(self) -> Optional[ASTPattern [expr]]:
+        # star_expr: '*' bitwise_or | expr
+        mark = self._mark()
+        if (
+            (self.expect('*'))
+            and
+            (a := self.bitwise_or())
+        ):
+            return Starred ( a );
+        self._reset(mark)
+        if (
+            (expr := self.expr())
+        ):
+            return expr;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def star_named_exprs(self) -> Optional[list [ASTPattern [expr]]]:
+        # star_named_exprs: ','.star_named_expr+ ','?
+        mark = self._mark()
+        if (
+            (a := cast(list [ASTPattern [expr]], self._gather_6()))
+            and
+            (self.expect(','),)
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def star_named_expr(self) -> Optional[ASTPattern [expr]]:
+        # star_named_expr: '*' bitwise_or | named_expr
+        mark = self._mark()
+        if (
+            (self.expect('*'))
+            and
+            (a := self.bitwise_or())
+        ):
+            return Starred ( a );
+        self._reset(mark)
+        if (
+            (named_expr := self.named_expr())
+        ):
+            return named_expr;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def assignment_expr(self) -> Optional[ASTPattern [expr]]:
+        # assignment_expr: NAME ':=' ~ expr
+        mark = self._mark()
+        cut = False
+        if (
+            (a := self.name())
+            and
+            (self.expect(':='))
+            and
+            (cut := True)
+            and
+            (b := self.expr())
+        ):
+            return NamedExpr ( target = a , value = b );
+        self._reset(mark)
+        if cut:
+            return None;
+        return None;
+
+    @memoize
+    def named_expr(self) -> Optional[ASTPattern [expr]]:
+        # named_expr: assignment_expr | expr !':='
+        mark = self._mark()
+        if (
+            (assignment_expr := self.assignment_expr())
+        ):
+            return assignment_expr;
+        self._reset(mark)
+        if (
+            (expr := self.expr())
+            and
+            (self.negative_lookahead(self.expect, ':='))
+        ):
+            return expr;
         self._reset(mark)
         return None;
 
@@ -448,7 +606,7 @@ class DSLParser(Parser):
         if (
             (a := self.conjunction())
             and
-            (b := self._loop1_6())
+            (b := self._loop1_8())
         ):
             return BoolOp ( op = Or ( ) , values = [a , * b] );
         self._reset(mark)
@@ -466,7 +624,7 @@ class DSLParser(Parser):
         if (
             (a := self.inversion())
             and
-            (b := self._loop1_7())
+            (b := self._loop1_9())
         ):
             return BoolOp ( op = And ( ) , values = [a , * b] );
         self._reset(mark)
@@ -502,7 +660,7 @@ class DSLParser(Parser):
         if (
             (a := self.bitwise_or())
             and
-            (b := self._loop1_8())
+            (b := self._loop1_10())
         ):
             return Compare ( left = a , ops = [pair ['op'] for pair in b] , comparators = [pair ['comparator'] for pair in b] );
         self._reset(mark)
@@ -852,7 +1010,7 @@ class DSLParser(Parser):
             and
             (self.expect(')'))
         ):
-            return Call ( func = a , args = args or Wildcard ( ) );
+            return Call ( func = a , args = args or [] );
         self._reset(mark)
         if (
             (a := self.primary())
@@ -874,32 +1032,38 @@ class DSLParser(Parser):
 
     @memoize
     def atom(self) -> Optional[ASTPattern [expr]]:
-        # atom: constant | dict_expr | set_expr | list_expr | tuple_expr | wildcard | name_expr | capture_pattern | capture_id | wildcard_id
+        # atom: name_expr | constant | &'(' (tuple | group | genexp) | &'[' (list | listcomp) | &'{' (dict | set | dictcomp | setcomp) | wildcard | wildcard_id | capture_pattern | capture_id
         mark = self._mark()
+        if (
+            (name_expr := self.name_expr())
+        ):
+            return name_expr;
+        self._reset(mark)
         if (
             (constant := self.constant())
         ):
             return constant;
         self._reset(mark)
         if (
-            (dict_expr := self.dict_expr())
+            (self.positive_lookahead(self.expect, '('))
+            and
+            (_tmp_11 := self._tmp_11())
         ):
-            return dict_expr;
+            return _tmp_11;
         self._reset(mark)
         if (
-            (set_expr := self.set_expr())
+            (self.positive_lookahead(self.expect, '['))
+            and
+            (_tmp_12 := self._tmp_12())
         ):
-            return set_expr;
+            return _tmp_12;
         self._reset(mark)
         if (
-            (list_expr := self.list_expr())
+            (self.positive_lookahead(self.expect, '{'))
+            and
+            (_tmp_13 := self._tmp_13())
         ):
-            return list_expr;
-        self._reset(mark)
-        if (
-            (tuple_expr := self.tuple_expr())
-        ):
-            return tuple_expr;
+            return _tmp_13;
         self._reset(mark)
         if (
             (wildcard := self.wildcard())
@@ -907,9 +1071,9 @@ class DSLParser(Parser):
             return wildcard;
         self._reset(mark)
         if (
-            (name_expr := self.name_expr())
+            (wildcard_id := self.wildcard_id())
         ):
-            return name_expr;
+            return wildcard_id;
         self._reset(mark)
         if (
             (c := self.capture_pattern())
@@ -921,48 +1085,128 @@ class DSLParser(Parser):
         ):
             return Capture ( name = c . name , pattern = expr ( ) );
         self._reset(mark)
-        if (
-            (self.wildcard_id())
-        ):
-            return Name ( );
-        self._reset(mark)
         return None;
 
     @memoize
-    def capture_pattern(self) -> Optional[Capture [ASTPattern [expr]]]:
-        # capture_pattern: capture '{' expr '}'
+    def group(self) -> Optional[expr_ty]:
+        # group: '(' (yield_expr | named_expr) ')'
         mark = self._mark()
         if (
-            (c := self.capture())
+            (self.expect('('))
             and
-            (self.expect('{'))
+            (a := self._tmp_14())
             and
-            (pattern := self.expr())
-            and
-            (self.expect('}'))
+            (self.expect(')'))
         ):
-            return Capture ( name = c ['name'] , pattern = pattern );
+            return a;
         self._reset(mark)
         return None;
 
     @memoize
-    def list_expr(self) -> Optional[List]:
-        # list_expr: '[' exprs? ']'
+    def lambdef(self) -> Optional[Any]:
+        # lambdef: 'never'
         mark = self._mark()
         if (
-            (self.expect('['))
-            and
-            (a := self.exprs(),)
-            and
-            (self.expect(']'))
+            (literal := self.expect('never'))
         ):
-            return List ( elts = a or [] );
+            return literal;
         self._reset(mark)
         return None;
 
     @memoize
-    def tuple_expr(self) -> Optional[Tuple]:
-        # tuple_expr: '(' exprs? ')'
+    def genexp(self) -> Optional[Any]:
+        # genexp: 'never'
+        mark = self._mark()
+        if (
+            (literal := self.expect('never'))
+        ):
+            return literal;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def listcomp(self) -> Optional[Any]:
+        # listcomp: 'never'
+        mark = self._mark()
+        if (
+            (literal := self.expect('never'))
+        ):
+            return literal;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def setcomp(self) -> Optional[Any]:
+        # setcomp: 'never'
+        mark = self._mark()
+        if (
+            (literal := self.expect('never'))
+        ):
+            return literal;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def dictcomp(self) -> Optional[Any]:
+        # dictcomp: 'never'
+        mark = self._mark()
+        if (
+            (literal := self.expect('never'))
+        ):
+            return literal;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def constant(self) -> Optional[Constant]:
+        # constant: 'None' | 'True' | 'False' | NUMBER | STRING | '...'
+        mark = self._mark()
+        if (
+            (self.expect('None'))
+        ):
+            return Constant ( value = None );
+        self._reset(mark)
+        if (
+            (self.expect('True'))
+        ):
+            return Constant ( value = True );
+        self._reset(mark)
+        if (
+            (self.expect('False'))
+        ):
+            return Constant ( value = False );
+        self._reset(mark)
+        if (
+            (n := self.number())
+        ):
+            return Constant ( value = ast . literal_eval ( n . string ) );
+        self._reset(mark)
+        if (
+            (s := self.string())
+        ):
+            return Constant ( value = s . string );
+        self._reset(mark)
+        if (
+            (self.expect('...'))
+        ):
+            return Constant ( value = ... );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def name_expr(self) -> Optional[Name]:
+        # name_expr: NAME
+        mark = self._mark()
+        if (
+            (n := self.name())
+        ):
+            return Name ( id = n . string );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def tuple(self) -> Optional[Tuple]:
+        # tuple: '(' exprs? ')'
         mark = self._mark()
         if (
             (self.expect('('))
@@ -976,23 +1220,23 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def dict_expr(self) -> Optional[Dict]:
-        # dict_expr: '{' dict '}'
+    def list(self) -> Optional[List]:
+        # list: '[' exprs? ']'
         mark = self._mark()
         if (
-            (self.expect('{'))
+            (self.expect('['))
             and
-            (d := self.dict())
+            (a := self.exprs(),)
             and
-            (self.expect('}'))
+            (self.expect(']'))
         ):
-            return Dict ( keys = d [0] , values = d [1] );
+            return List ( elts = a or [] );
         self._reset(mark)
         return None;
 
     @memoize
-    def set_expr(self) -> Optional[Set]:
-        # set_expr: '{' exprs? '}'
+    def set(self) -> Optional[Set]:
+        # set: '{' exprs? '}'
         mark = self._mark()
         if (
             (self.expect('{'))
@@ -1006,37 +1250,17 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def wildcard(self) -> Optional[Wildcard]:
-        # wildcard: '~'
+    def dict(self) -> Optional[Dict]:
+        # dict: '{' dict '}'
         mark = self._mark()
         if (
-            (self.expect('~'))
-        ):
-            return Wildcard ( );
-        self._reset(mark)
-        return None;
-
-    @memoize
-    def dict(self) -> Optional[tuple [list [ASTPattern [expr | None]] , list [ASTPattern [expr]]]]:
-        # dict: (expr ':' expr) ((',' expr ':' expr))*
-        mark = self._mark()
-        if (
-            (head := self._tmp_9())
+            (self.expect('{'))
             and
-            (tail := self._loop0_10(),)
+            (d := self.dict())
+            and
+            (self.expect('}'))
         ):
-            return _make_dict ( head , tail );
-        self._reset(mark)
-        return None;
-
-    @memoize
-    def name_expr(self) -> Optional[Name]:
-        # name_expr: NAME
-        mark = self._mark()
-        if (
-            (n := self.name())
-        ):
-            return Name ( id = n . string );
+            return Dict ( keys = d [0] , values = d [1] );
         self._reset(mark)
         return None;
 
@@ -1073,6 +1297,17 @@ class DSLParser(Parser):
         return None;
 
     @memoize
+    def wildcard(self) -> Optional[Wildcard]:
+        # wildcard: '~'
+        mark = self._mark()
+        if (
+            (self.expect('~'))
+        ):
+            return Wildcard ( );
+        self._reset(mark)
+        return None;
+
+    @memoize
     def wildcard_id(self) -> Optional[WildcardId]:
         # wildcard_id: '`'
         mark = self._mark()
@@ -1104,51 +1339,19 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def ellipsis(self) -> Optional[Any]:
-        # ellipsis: ':' '...' | ':'
+    def capture_pattern(self) -> Optional[Capture [ASTPattern [expr]]]:
+        # capture_pattern: capture '{' expr '}'
         mark = self._mark()
         if (
-            (literal := self.expect(':'))
+            (c := self.capture())
             and
-            (literal_1 := self.expect('...'))
+            (self.expect('{'))
+            and
+            (pattern := self.expr())
+            and
+            (self.expect('}'))
         ):
-            return [literal, literal_1];
-        self._reset(mark)
-        if (
-            (literal := self.expect(':'))
-        ):
-            return literal;
-        self._reset(mark)
-        return None;
-
-    @memoize
-    def constant(self) -> Optional[Constant]:
-        # constant: 'None' | 'True' | 'False' | NUMBER | STRING
-        mark = self._mark()
-        if (
-            (self.expect('None'))
-        ):
-            return Constant ( value = None );
-        self._reset(mark)
-        if (
-            (self.expect('True'))
-        ):
-            return Constant ( value = True );
-        self._reset(mark)
-        if (
-            (self.expect('False'))
-        ):
-            return Constant ( value = False );
-        self._reset(mark)
-        if (
-            (n := self.number())
-        ):
-            return Constant ( value = ast . literal_eval ( n . string ) );
-        self._reset(mark)
-        if (
-            (s := self.string())
-        ):
-            return Constant ( value = s . string );
+            return Capture ( name = c ['name'] , pattern = pattern );
         self._reset(mark)
         return None;
 
@@ -1226,34 +1429,64 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _loop1_6(self) -> Optional[Any]:
-        # _loop1_6: ('or' conjunction)
+    def _loop0_7(self) -> Optional[Any]:
+        # _loop0_7: ',' star_named_expr
         mark = self._mark()
         children = []
         while (
-            (_tmp_11 := self._tmp_11())
+            (self.expect(','))
+            and
+            (elem := self.star_named_expr())
         ):
-            children.append(_tmp_11)
+            children.append(elem)
             mark = self._mark()
         self._reset(mark)
         return children;
 
     @memoize
-    def _loop1_7(self) -> Optional[Any]:
-        # _loop1_7: ('and' inversion)
+    def _gather_6(self) -> Optional[Any]:
+        # _gather_6: star_named_expr _loop0_7
         mark = self._mark()
-        children = []
-        while (
-            (_tmp_12 := self._tmp_12())
+        if (
+            (elem := self.star_named_expr())
+            is not None
+            and
+            (seq := self._loop0_7())
+            is not None
         ):
-            children.append(_tmp_12)
-            mark = self._mark()
+            return [elem] + seq;
         self._reset(mark)
-        return children;
+        return None;
 
     @memoize
     def _loop1_8(self) -> Optional[Any]:
-        # _loop1_8: compare_op_bitwise_or_pair
+        # _loop1_8: ('or' conjunction)
+        mark = self._mark()
+        children = []
+        while (
+            (_tmp_15 := self._tmp_15())
+        ):
+            children.append(_tmp_15)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_9(self) -> Optional[Any]:
+        # _loop1_9: ('and' inversion)
+        mark = self._mark()
+        children = []
+        while (
+            (_tmp_16 := self._tmp_16())
+        ):
+            children.append(_tmp_16)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_10(self) -> Optional[Any]:
+        # _loop1_10: compare_op_bitwise_or_pair
         mark = self._mark()
         children = []
         while (
@@ -1265,36 +1498,87 @@ class DSLParser(Parser):
         return children;
 
     @memoize
-    def _tmp_9(self) -> Optional[Any]:
-        # _tmp_9: expr ':' expr
+    def _tmp_11(self) -> Optional[Any]:
+        # _tmp_11: tuple | group | genexp
         mark = self._mark()
         if (
-            (k := self.expr())
-            and
-            (literal := self.expect(':'))
-            and
-            (v := self.expr())
+            (tuple := self.tuple())
         ):
-            return [k, literal, v];
+            return tuple;
+        self._reset(mark)
+        if (
+            (group := self.group())
+        ):
+            return group;
+        self._reset(mark)
+        if (
+            (genexp := self.genexp())
+        ):
+            return genexp;
         self._reset(mark)
         return None;
 
     @memoize
-    def _loop0_10(self) -> Optional[Any]:
-        # _loop0_10: (',' expr ':' expr)
+    def _tmp_12(self) -> Optional[Any]:
+        # _tmp_12: list | listcomp
         mark = self._mark()
-        children = []
-        while (
-            (_tmp_13 := self._tmp_13())
+        if (
+            (list := self.list())
         ):
-            children.append(_tmp_13)
-            mark = self._mark()
+            return list;
         self._reset(mark)
-        return children;
+        if (
+            (listcomp := self.listcomp())
+        ):
+            return listcomp;
+        self._reset(mark)
+        return None;
 
     @memoize
-    def _tmp_11(self) -> Optional[Any]:
-        # _tmp_11: 'or' conjunction
+    def _tmp_13(self) -> Optional[Any]:
+        # _tmp_13: dict | set | dictcomp | setcomp
+        mark = self._mark()
+        if (
+            (dict := self.dict())
+        ):
+            return dict;
+        self._reset(mark)
+        if (
+            (set := self.set())
+        ):
+            return set;
+        self._reset(mark)
+        if (
+            (dictcomp := self.dictcomp())
+        ):
+            return dictcomp;
+        self._reset(mark)
+        if (
+            (setcomp := self.setcomp())
+        ):
+            return setcomp;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def _tmp_14(self) -> Optional[Any]:
+        # _tmp_14: yield_expr | named_expr
+        mark = self._mark()
+        if (
+            (yield_expr := self.yield_expr())
+        ):
+            return yield_expr;
+        self._reset(mark)
+        if (
+            (named_expr := self.named_expr())
+        ):
+            return named_expr;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def _tmp_15(self) -> Optional[Any]:
+        # _tmp_15: 'or' conjunction
         mark = self._mark()
         if (
             (self.expect('or'))
@@ -1306,8 +1590,8 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _tmp_12(self) -> Optional[Any]:
-        # _tmp_12: 'and' inversion
+    def _tmp_16(self) -> Optional[Any]:
+        # _tmp_16: 'and' inversion
         mark = self._mark()
         if (
             (self.expect('and'))
@@ -1318,24 +1602,7 @@ class DSLParser(Parser):
         self._reset(mark)
         return None;
 
-    @memoize
-    def _tmp_13(self) -> Optional[Any]:
-        # _tmp_13: ',' expr ':' expr
-        mark = self._mark()
-        if (
-            (literal := self.expect(','))
-            and
-            (k := self.expr())
-            and
-            (literal_1 := self.expect(':'))
-            and
-            (v := self.expr())
-        ):
-            return [literal, k, literal_1, v];
-        self._reset(mark)
-        return None;
-
-    KEYWORDS = ('False', 'None', 'True', 'and', 'async', 'await', 'class', 'def', 'delete', 'for', 'if', 'in', 'is', 'not', 'or', 'return', 'while')
+    KEYWORDS = ('False', 'None', 'True', 'and', 'async', 'await', 'class', 'def', 'delete', 'else', 'for', 'from', 'if', 'in', 'is', 'never', 'not', 'or', 'return', 'while', 'yield')
     SOFT_KEYWORDS = ()
 
 

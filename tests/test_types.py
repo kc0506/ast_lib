@@ -1,8 +1,10 @@
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false, reportUnusedClass=false, reportUnusedParameter=false
+# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false, reportUnusedClass=false
+from __future__ import annotations
 
 import ast
-from typing import assert_type
+from typing import Generator, assert_type
 
+from ast_lib.match_pattern import MatchResult, MatchTypeHint
 from ast_lib.visitor.context import NodeContextVar, node_context
 from ast_lib.visitor.core import BaseNodeVisitor
 from ast_lib.visitor.presets import pure_visit
@@ -48,6 +50,13 @@ def test_context_decorator():
         def d(self, node: ast.FunctionDef) -> str:
             return self.c + node.name
 
+        @node_context(ast.FunctionDef, default_factory=lambda: "default")
+        def test_match_result(
+            self,
+            node: ast.FunctionDef,
+            match_result: MatchResult[ast.FunctionDef, int, dict],
+        ) -> str: ...
+
     assert_type(Visitor().a, str | None)
     assert_type(Visitor().b, str)
     assert_type(Visitor().c, str)
@@ -60,6 +69,17 @@ def test_pure_visit():
 
         @pure_visit(ast.FunctionDef, mode="before")
         def func1(self, node: ast.FunctionDef) -> str:
+            assert_type(self.field, str)
+            return node.name
+
+        @pure_visit(ast.FunctionDef, mode="before")
+        def test_match_result(
+            self,
+            node: ast.FunctionDef,
+            match_result: MatchResult[ast.FunctionDef, int, dict],
+        ) -> str:
+            (x,) = match_result.groups
+            assert_type(x, int)
             assert_type(self.field, str)
             return node.name
 
@@ -78,10 +98,31 @@ def test_reducer():
         def func_list(self, node: ast.FunctionDef) -> ast.FunctionDef:
             return node
 
-        nodelist_collector(ast.FunctionDef, patterns=["def $name():..."])
-        def func_list_with_patterns(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        @nodelist_collector(ast.FunctionDef, pattern="def $name():...")
+        def func_list_with_pattern(self, node: ast.FunctionDef) -> ast.FunctionDef:
             return node
 
+        @nodelist_collector(ast.FunctionDef)
+        def func_list_with_generator(self, node: ast.FunctionDef) -> Generator[int]:
+            yield len(self.func_list)
+
+        @nodelist_collector(
+            ast.FunctionDef, match_type_hint=MatchTypeHint[ast.FunctionDef, dict]()
+        )
+        def func_list_with_type_hint(
+            self,
+            node: ast.FunctionDef,
+            match_result: MatchResult[ast.FunctionDef, dict],
+        ) -> Generator[int]:
+            yield len(self.func_list)
+
+        @nodelist_collector(ast.FunctionDef)
+        def func_list_with_match_result(
+            self,
+            node: ast.FunctionDef,
+            match_result: MatchResult[ast.FunctionDef, dict],
+        ) -> Generator[int]:
+            yield len(self.func_list)
 
         @nodemap_collector(
             ast.FunctionDef,

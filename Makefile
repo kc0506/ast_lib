@@ -48,3 +48,9 @@ test-types:
 .PHONY: test
 test:
 	uv run pytest tests/ --ignore=tests/test_types.py
+
+
+.PHONY: test-visitor
+test-visitor:
+	uv run pytest tests/visitor/
+
