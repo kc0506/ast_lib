@@ -1,0 +1,540 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+                <link href="lib/tom-select/tom-select.css" rel="stylesheet">
+                <script src="lib/tom-select/tom-select.complete.min.js"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 600px;
+                 background-color: #ffffff;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+             #config {
+                 float: left;
+                 width: 400px;
+                 height: 600px;
+             }
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+                <div id="select-menu" class="card-header">
+                    <div class="row no-gutters">
+                        <div class="col-10 pb-2">
+                            <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="selectNode([value]);"
+                            id="select-node"
+                            placeholder="Select node..."
+                            >
+                                <option selected>Select a Node by ID</option>
+                                
+                                    <option value="expressions">expressions</option>
+                                
+                                    <option value="expression">expression</option>
+                                
+                                    <option value="disjunction">disjunction</option>
+                                
+                                    <option value="lambdef">lambdef</option>
+                                
+                                    <option value="conjunction">conjunction</option>
+                                
+                                    <option value="lambda_params">lambda_params</option>
+                                
+                                    <option value="inversion">inversion</option>
+                                
+                                    <option value="lambda_parameters">lambda_parameters</option>
+                                
+                                    <option value="comparison">comparison</option>
+                                
+                                    <option value="lambda_slash_no_default">lambda_slash_no_default</option>
+                                
+                                    <option value="lambda_param_with_default">lambda_param_with_default</option>
+                                
+                                    <option value="lambda_param_no_default">lambda_param_no_default</option>
+                                
+                                    <option value="lambda_star_etc">lambda_star_etc</option>
+                                
+                                    <option value="lambda_slash_with_default">lambda_slash_with_default</option>
+                                
+                                    <option value="compare_op_bitwise_or_pair">compare_op_bitwise_or_pair</option>
+                                
+                                    <option value="bitwise_or">bitwise_or</option>
+                                
+                                    <option value="lambda_param">lambda_param</option>
+                                
+                                    <option value="default">default</option>
+                                
+                                    <option value="lambda_kwds">lambda_kwds</option>
+                                
+                                    <option value="lambda_param_maybe_default">lambda_param_maybe_default</option>
+                                
+                                    <option value="eq_bitwise_or">eq_bitwise_or</option>
+                                
+                                    <option value="noteq_bitwise_or">noteq_bitwise_or</option>
+                                
+                                    <option value="lte_bitwise_or">lte_bitwise_or</option>
+                                
+                                    <option value="lt_bitwise_or">lt_bitwise_or</option>
+                                
+                                    <option value="gte_bitwise_or">gte_bitwise_or</option>
+                                
+                                    <option value="gt_bitwise_or">gt_bitwise_or</option>
+                                
+                                    <option value="notin_bitwise_or">notin_bitwise_or</option>
+                                
+                                    <option value="in_bitwise_or">in_bitwise_or</option>
+                                
+                                    <option value="isnot_bitwise_or">isnot_bitwise_or</option>
+                                
+                                    <option value="is_bitwise_or">is_bitwise_or</option>
+                                
+                                    <option value="bitwise_xor">bitwise_xor</option>
+                                
+                                    <option value="bitwise_and">bitwise_and</option>
+                                
+                                    <option value="shift_expr">shift_expr</option>
+                                
+                                    <option value="sum">sum</option>
+                                
+                                    <option value="term">term</option>
+                                
+                                    <option value="factor">factor</option>
+                                
+                                    <option value="power">power</option>
+                                
+                                    <option value="await_primary">await_primary</option>
+                                
+                                    <option value="primary">primary</option>
+                                
+                                    <option value="genexp">genexp</option>
+                                
+                                    <option value="arguments">arguments</option>
+                                
+                                    <option value="slices">slices</option>
+                                
+                                    <option value="atom">atom</option>
+                                
+                                    <option value="assignment_expression">assignment_expression</option>
+                                
+                                    <option value="for_if_clauses">for_if_clauses</option>
+                                
+                                    <option value="args">args</option>
+                                
+                                    <option value="slice">slice</option>
+                                
+                                    <option value="starred_expression">starred_expression</option>
+                                
+                                    <option value="strings">strings</option>
+                                
+                                    <option value="group">group</option>
+                                
+                                    <option value="tuple">tuple</option>
+                                
+                                    <option value="list">list</option>
+                                
+                                    <option value="listcomp">listcomp</option>
+                                
+                                    <option value="set">set</option>
+                                
+                                    <option value="setcomp">setcomp</option>
+                                
+                                    <option value="dict">dict</option>
+                                
+                                    <option value="dictcomp">dictcomp</option>
+                                
+                                    <option value="for_if_clause">for_if_clause</option>
+                                
+                                    <option value="kwargs">kwargs</option>
+                                
+                                    <option value="named_expression">named_expression</option>
+                                
+                                    <option value="fstring">fstring</option>
+                                
+                                    <option value="string">string</option>
+                                
+                                    <option value="yield_expr">yield_expr</option>
+                                
+                                    <option value="star_named_expressions">star_named_expressions</option>
+                                
+                                    <option value="star_named_expression">star_named_expression</option>
+                                
+                                    <option value="double_starred_kvpairs">double_starred_kvpairs</option>
+                                
+                                    <option value="kvpair">kvpair</option>
+                                
+                                    <option value="star_targets">star_targets</option>
+                                
+                                    <option value="kwarg_or_starred">kwarg_or_starred</option>
+                                
+                                    <option value="kwarg_or_double_starred">kwarg_or_double_starred</option>
+                                
+                                    <option value="fstring_middle">fstring_middle</option>
+                                
+                                    <option value="star_expressions">star_expressions</option>
+                                
+                                    <option value="double_starred_kvpair">double_starred_kvpair</option>
+                                
+                                    <option value="star_target">star_target</option>
+                                
+                                    <option value="fstring_replacement_field">fstring_replacement_field</option>
+                                
+                                    <option value="star_expression">star_expression</option>
+                                
+                                    <option value="target_with_star_atom">target_with_star_atom</option>
+                                
+                                    <option value="fstring_full_format_spec">fstring_full_format_spec</option>
+                                
+                                    <option value="annotated_rhs">annotated_rhs</option>
+                                
+                                    <option value="fstring_conversion">fstring_conversion</option>
+                                
+                                    <option value="t_lookahead">t_lookahead</option>
+                                
+                                    <option value="t_primary">t_primary</option>
+                                
+                                    <option value="star_atom">star_atom</option>
+                                
+                                    <option value="fstring_format_spec">fstring_format_spec</option>
+                                
+                                    <option value="star_targets_tuple_seq">star_targets_tuple_seq</option>
+                                
+                                    <option value="star_targets_list_seq">star_targets_list_seq</option>
+                                
+                            </select>
+                        </div>
+                        <div class="col-2 pb-2">
+                            <button type="button" class="btn btn-primary btn-block" onclick="neighbourhoodHighlight({nodes: []});">Reset Selection</button>
+                        </div>
+                    </div>
+                </div>
+            
+            
+              <div id="filter-menu" class="card-header">
+                <div class="row no-gutters">
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'item')"
+                            id="select-item"
+                        >
+                        <option value="">Select a network item</option>
+                        <option value="edge">edge</option>
+                        <option value="node">node</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'property')"
+                            id="select-property"
+                        >
+                        <option value="">Select a property...</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            id="select-value"
+                        >
+                        <option value="">Select value(s)...</option>
+                    </select>
+                  </div>
+                  <div class="col-1 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="highlightFilter(filter);">Filter</button>
+                  </div>
+                  <div class="col-2 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="clearFilter(true)">Reset Selection</button>
+                  </div>
+                </div>
+              </div>
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+            <div id="config"></div>
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+                  new TomSelect("#select-node",{
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      }
+                  });
+              
+
+              
+                  // explicitly using onItemAdd and this function as we need to save multiple values
+                  let updateValueFilter = function() {
+                      return function () {
+                      filter['value'].push(arguments[0])
+                      }
+                  }
+
+                  let valueControl = new TomSelect("#select-value",{
+                      maxItems: null,
+                      valueField: 'id',
+                      labelField: 'title',
+                      searchField: 'title',
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: updateValueFilter()
+                  });
+
+                  let addValues = function() {
+                      return function () {
+                          // clear the current value options and add the selected attribute values
+                          // tom-select handles duplicates
+                          let selectedProperty = arguments[0];
+                          valueControl.clear();
+                          valueControl.clearOptions();
+                          filter['value'] = []
+                          if (filter['item'] === 'node') {
+                              for (let each in allNodes) {
+                                  valueControl.addOption({
+                                      id:allNodes[each][selectedProperty],
+                                      title:allNodes[each][selectedProperty]
+                                  })
+                              }
+                          }
+                          else if (filter['item'] === 'edge') {
+                              for (let each in allEdges) {
+                                  valueControl.addOption({
+                                      id:allEdges[each][selectedProperty],
+                                      title:allEdges[each][selectedProperty]
+                                  })
+                              }
+                          }
+                      }
+                  };
+
+                  let propControl = new TomSelect("#select-property",{
+                      valueField: 'id',
+                      labelField: 'title',
+                      searchField: 'title',
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: addValues()
+                  });
+
+                  let addProperties = function() {
+                      return function () {
+                          // loops through the selected network item and adds the attributes to dropdown
+                          // tom-select handles duplicates
+                          clearFilter(false)
+                          if (arguments[0] === 'edge') {
+                              for (let each in allEdges) {
+                                  if (allEdges.hasOwnProperty(each)) {
+                                      for (let eachProp in allEdges[each]) {
+                                          if (allEdges[each].hasOwnProperty(eachProp)) {
+                                              propControl.addOption({id: eachProp, title: eachProp})
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                          else if (arguments[0] === 'node') {
+                              for (let each in allNodes) {
+                                  if (allNodes.hasOwnProperty(each)) {
+                                      for (let eachProp in allNodes[each]) {
+                                          if (allNodes[each].hasOwnProperty(eachProp)
+                                              && (eachProp !== 'hidden' && eachProp !== 'savedLabel'
+                                                  && eachProp !== 'hiddenLabel')) {
+                                              propControl.addOption({id: eachProp, title: eachProp})
+
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  };
+
+                  let itemControl = new TomSelect("#select-item",{
+                      create: false,
+                      sortField:{
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: addProperties()
+                  });
+
+                  function clearFilter(reset) {
+                      // utility function to clear all the selected filter options
+                      // if reset is set to true, the existing filter will be removed
+                      // else, only the dropdown options are cleared
+                      propControl.clear();
+                      propControl.clearOptions();
+                      valueControl.clear();
+                      valueControl.clearOptions();
+                      filter = {
+                          item : '',
+                          property : '',
+                          value : []
+                      }
+                      if (reset) {
+                          itemControl.clear();
+                          filterHighlight({nodes: []})
+                      }
+                  }
+
+                  function updateFilter(value, key) {
+                      // key could be 'item' or 'property' and value is as selected in dropdown
+                      filter[key] = value
+                  }
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#97c2fc", "id": "expressions", "label": "expressions", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "expression", "label": "expression", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "disjunction", "label": "disjunction", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambdef", "label": "lambdef", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "conjunction", "label": "conjunction", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_params", "label": "lambda_params", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "inversion", "label": "inversion", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_parameters", "label": "lambda_parameters", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "comparison", "label": "comparison", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_slash_no_default", "label": "lambda_slash_no_default", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_param_with_default", "label": "lambda_param_with_default", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_param_no_default", "label": "lambda_param_no_default", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_star_etc", "label": "lambda_star_etc", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_slash_with_default", "label": "lambda_slash_with_default", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "compare_op_bitwise_or_pair", "label": "compare_op_bitwise_or_pair", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "bitwise_or", "label": "bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_param", "label": "lambda_param", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "default", "label": "default", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_kwds", "label": "lambda_kwds", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lambda_param_maybe_default", "label": "lambda_param_maybe_default", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "eq_bitwise_or", "label": "eq_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "noteq_bitwise_or", "label": "noteq_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lte_bitwise_or", "label": "lte_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "lt_bitwise_or", "label": "lt_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "gte_bitwise_or", "label": "gte_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "gt_bitwise_or", "label": "gt_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "notin_bitwise_or", "label": "notin_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "in_bitwise_or", "label": "in_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "isnot_bitwise_or", "label": "isnot_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "is_bitwise_or", "label": "is_bitwise_or", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "bitwise_xor", "label": "bitwise_xor", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "bitwise_and", "label": "bitwise_and", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "shift_expr", "label": "shift_expr", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "sum", "label": "sum", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "term", "label": "term", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "factor", "label": "factor", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "power", "label": "power", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "await_primary", "label": "await_primary", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "primary", "label": "primary", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "genexp", "label": "genexp", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "arguments", "label": "arguments", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "slices", "label": "slices", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "atom", "label": "atom", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "assignment_expression", "label": "assignment_expression", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "for_if_clauses", "label": "for_if_clauses", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "args", "label": "args", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "slice", "label": "slice", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "starred_expression", "label": "starred_expression", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "strings", "label": "strings", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "group", "label": "group", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "tuple", "label": "tuple", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "list", "label": "list", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "listcomp", "label": "listcomp", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "set", "label": "set", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "setcomp", "label": "setcomp", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "dict", "label": "dict", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "dictcomp", "label": "dictcomp", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "for_if_clause", "label": "for_if_clause", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "kwargs", "label": "kwargs", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "named_expression", "label": "named_expression", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "fstring", "label": "fstring", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "string", "label": "string", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "yield_expr", "label": "yield_expr", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_named_expressions", "label": "star_named_expressions", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_named_expression", "label": "star_named_expression", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "double_starred_kvpairs", "label": "double_starred_kvpairs", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "kvpair", "label": "kvpair", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_targets", "label": "star_targets", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "kwarg_or_starred", "label": "kwarg_or_starred", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "kwarg_or_double_starred", "label": "kwarg_or_double_starred", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "fstring_middle", "label": "fstring_middle", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_expressions", "label": "star_expressions", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "double_starred_kvpair", "label": "double_starred_kvpair", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_target", "label": "star_target", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "fstring_replacement_field", "label": "fstring_replacement_field", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_expression", "label": "star_expression", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "target_with_star_atom", "label": "target_with_star_atom", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "fstring_full_format_spec", "label": "fstring_full_format_spec", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "annotated_rhs", "label": "annotated_rhs", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "fstring_conversion", "label": "fstring_conversion", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "t_lookahead", "label": "t_lookahead", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "t_primary", "label": "t_primary", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_atom", "label": "star_atom", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "fstring_format_spec", "label": "fstring_format_spec", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_targets_tuple_seq", "label": "star_targets_tuple_seq", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "star_targets_list_seq", "label": "star_targets_list_seq", "shape": "dot", "size": 10}]);
+                  edges = new vis.DataSet([{"arrows": "to", "from": "expressions", "to": "expression", "width": 1}, {"arrows": "to", "from": "expression", "to": "disjunction", "width": 1}, {"arrows": "to", "from": "expression", "to": "lambdef", "width": 1}, {"arrows": "to", "from": "disjunction", "to": "conjunction", "width": 1}, {"arrows": "to", "from": "lambdef", "to": "expression", "width": 1}, {"arrows": "to", "from": "lambdef", "to": "lambda_params", "width": 1}, {"arrows": "to", "from": "conjunction", "to": "inversion", "width": 1}, {"arrows": "to", "from": "lambda_params", "to": "lambda_parameters", "width": 1}, {"arrows": "to", "from": "inversion", "to": "comparison", "width": 1}, {"arrows": "to", "from": "lambda_parameters", "to": "lambda_slash_no_default", "width": 1}, {"arrows": "to", "from": "lambda_parameters", "to": "lambda_param_with_default", "width": 1}, {"arrows": "to", "from": "lambda_parameters", "to": "lambda_param_no_default", "width": 1}, {"arrows": "to", "from": "lambda_parameters", "to": "lambda_star_etc", "width": 1}, {"arrows": "to", "from": "lambda_parameters", "to": "lambda_slash_with_default", "width": 1}, {"arrows": "to", "from": "comparison", "to": "compare_op_bitwise_or_pair", "width": 1}, {"arrows": "to", "from": "comparison", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "lambda_slash_no_default", "to": "lambda_param_no_default", "width": 1}, {"arrows": "to", "from": "lambda_param_with_default", "to": "lambda_param", "width": 1}, {"arrows": "to", "from": "lambda_param_with_default", "to": "default", "width": 1}, {"arrows": "to", "from": "lambda_param_no_default", "to": "lambda_param", "width": 1}, {"arrows": "to", "from": "lambda_star_etc", "to": "lambda_kwds", "width": 1}, {"arrows": "to", "from": "lambda_star_etc", "to": "lambda_param_maybe_default", "width": 1}, {"arrows": "to", "from": "lambda_star_etc", "to": "lambda_param_no_default", "width": 1}, {"arrows": "to", "from": "lambda_slash_with_default", "to": "lambda_param_with_default", "width": 1}, {"arrows": "to", "from": "lambda_slash_with_default", "to": "lambda_param_no_default", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "eq_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "noteq_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "lte_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "lt_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "gte_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "gt_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "notin_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "in_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "isnot_bitwise_or", "width": 1}, {"arrows": "to", "from": "compare_op_bitwise_or_pair", "to": "is_bitwise_or", "width": 1}, {"arrows": "to", "from": "bitwise_or", "to": "bitwise_xor", "width": 1}, {"arrows": "to", "from": "default", "to": "expression", "width": 1}, {"arrows": "to", "from": "lambda_kwds", "to": "lambda_param_no_default", "width": 1}, {"arrows": "to", "from": "lambda_param_maybe_default", "to": "lambda_param", "width": 1}, {"arrows": "to", "from": "lambda_param_maybe_default", "to": "default", "width": 1}, {"arrows": "to", "from": "eq_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "noteq_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "lte_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "lt_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "gte_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "gt_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "notin_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "in_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "isnot_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "is_bitwise_or", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "bitwise_xor", "to": "bitwise_and", "width": 1}, {"arrows": "to", "from": "bitwise_and", "to": "shift_expr", "width": 1}, {"arrows": "to", "from": "shift_expr", "to": "sum", "width": 1}, {"arrows": "to", "from": "sum", "to": "term", "width": 1}, {"arrows": "to", "from": "term", "to": "factor", "width": 1}, {"arrows": "to", "from": "factor", "to": "power", "width": 1}, {"arrows": "to", "from": "power", "to": "factor", "width": 1}, {"arrows": "to", "from": "power", "to": "await_primary", "width": 1}, {"arrows": "to", "from": "await_primary", "to": "primary", "width": 1}, {"arrows": "to", "from": "primary", "to": "genexp", "width": 1}, {"arrows": "to", "from": "primary", "to": "arguments", "width": 1}, {"arrows": "to", "from": "primary", "to": "slices", "width": 1}, {"arrows": "to", "from": "primary", "to": "atom", "width": 1}, {"arrows": "to", "from": "genexp", "to": "assignment_expression", "width": 1}, {"arrows": "to", "from": "genexp", "to": "expression", "width": 1}, {"arrows": "to", "from": "genexp", "to": "for_if_clauses", "width": 1}, {"arrows": "to", "from": "arguments", "to": "args", "width": 1}, {"arrows": "to", "from": "slices", "to": "slice", "width": 1}, {"arrows": "to", "from": "slices", "to": "starred_expression", "width": 1}, {"arrows": "to", "from": "atom", "to": "strings", "width": 1}, {"arrows": "to", "from": "atom", "to": "genexp", "width": 1}, {"arrows": "to", "from": "atom", "to": "group", "width": 1}, {"arrows": "to", "from": "atom", "to": "tuple", "width": 1}, {"arrows": "to", "from": "atom", "to": "list", "width": 1}, {"arrows": "to", "from": "atom", "to": "listcomp", "width": 1}, {"arrows": "to", "from": "atom", "to": "set", "width": 1}, {"arrows": "to", "from": "atom", "to": "setcomp", "width": 1}, {"arrows": "to", "from": "atom", "to": "dict", "width": 1}, {"arrows": "to", "from": "atom", "to": "dictcomp", "width": 1}, {"arrows": "to", "from": "assignment_expression", "to": "expression", "width": 1}, {"arrows": "to", "from": "for_if_clauses", "to": "for_if_clause", "width": 1}, {"arrows": "to", "from": "args", "to": "kwargs", "width": 1}, {"arrows": "to", "from": "args", "to": "assignment_expression", "width": 1}, {"arrows": "to", "from": "args", "to": "expression", "width": 1}, {"arrows": "to", "from": "args", "to": "starred_expression", "width": 1}, {"arrows": "to", "from": "slice", "to": "expression", "width": 1}, {"arrows": "to", "from": "slice", "to": "named_expression", "width": 1}, {"arrows": "to", "from": "starred_expression", "to": "expression", "width": 1}, {"arrows": "to", "from": "strings", "to": "fstring", "width": 1}, {"arrows": "to", "from": "strings", "to": "string", "width": 1}, {"arrows": "to", "from": "group", "to": "named_expression", "width": 1}, {"arrows": "to", "from": "group", "to": "yield_expr", "width": 1}, {"arrows": "to", "from": "tuple", "to": "star_named_expressions", "width": 1}, {"arrows": "to", "from": "tuple", "to": "star_named_expression", "width": 1}, {"arrows": "to", "from": "list", "to": "star_named_expressions", "width": 1}, {"arrows": "to", "from": "listcomp", "to": "named_expression", "width": 1}, {"arrows": "to", "from": "listcomp", "to": "for_if_clauses", "width": 1}, {"arrows": "to", "from": "set", "to": "star_named_expressions", "width": 1}, {"arrows": "to", "from": "setcomp", "to": "named_expression", "width": 1}, {"arrows": "to", "from": "setcomp", "to": "for_if_clauses", "width": 1}, {"arrows": "to", "from": "dict", "to": "double_starred_kvpairs", "width": 1}, {"arrows": "to", "from": "dictcomp", "to": "kvpair", "width": 1}, {"arrows": "to", "from": "dictcomp", "to": "for_if_clauses", "width": 1}, {"arrows": "to", "from": "for_if_clause", "to": "star_targets", "width": 1}, {"arrows": "to", "from": "for_if_clause", "to": "disjunction", "width": 1}, {"arrows": "to", "from": "kwargs", "to": "kwarg_or_starred", "width": 1}, {"arrows": "to", "from": "kwargs", "to": "kwarg_or_double_starred", "width": 1}, {"arrows": "to", "from": "named_expression", "to": "assignment_expression", "width": 1}, {"arrows": "to", "from": "named_expression", "to": "expression", "width": 1}, {"arrows": "to", "from": "fstring", "to": "fstring_middle", "width": 1}, {"arrows": "to", "from": "yield_expr", "to": "expression", "width": 1}, {"arrows": "to", "from": "yield_expr", "to": "star_expressions", "width": 1}, {"arrows": "to", "from": "star_named_expressions", "to": "star_named_expression", "width": 1}, {"arrows": "to", "from": "star_named_expression", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "star_named_expression", "to": "named_expression", "width": 1}, {"arrows": "to", "from": "double_starred_kvpairs", "to": "double_starred_kvpair", "width": 1}, {"arrows": "to", "from": "kvpair", "to": "expression", "width": 1}, {"arrows": "to", "from": "star_targets", "to": "star_target", "width": 1}, {"arrows": "to", "from": "kwarg_or_starred", "to": "expression", "width": 1}, {"arrows": "to", "from": "kwarg_or_starred", "to": "starred_expression", "width": 1}, {"arrows": "to", "from": "kwarg_or_double_starred", "to": "expression", "width": 1}, {"arrows": "to", "from": "fstring_middle", "to": "fstring_replacement_field", "width": 1}, {"arrows": "to", "from": "star_expressions", "to": "star_expression", "width": 1}, {"arrows": "to", "from": "double_starred_kvpair", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "double_starred_kvpair", "to": "kvpair", "width": 1}, {"arrows": "to", "from": "star_target", "to": "target_with_star_atom", "width": 1}, {"arrows": "to", "from": "fstring_replacement_field", "to": "fstring_full_format_spec", "width": 1}, {"arrows": "to", "from": "fstring_replacement_field", "to": "annotated_rhs", "width": 1}, {"arrows": "to", "from": "fstring_replacement_field", "to": "fstring_conversion", "width": 1}, {"arrows": "to", "from": "star_expression", "to": "bitwise_or", "width": 1}, {"arrows": "to", "from": "star_expression", "to": "expression", "width": 1}, {"arrows": "to", "from": "target_with_star_atom", "to": "t_lookahead", "width": 1}, {"arrows": "to", "from": "target_with_star_atom", "to": "t_primary", "width": 1}, {"arrows": "to", "from": "target_with_star_atom", "to": "slices", "width": 1}, {"arrows": "to", "from": "target_with_star_atom", "to": "star_atom", "width": 1}, {"arrows": "to", "from": "fstring_full_format_spec", "to": "fstring_format_spec", "width": 1}, {"arrows": "to", "from": "annotated_rhs", "to": "yield_expr", "width": 1}, {"arrows": "to", "from": "annotated_rhs", "to": "star_expressions", "width": 1}, {"arrows": "to", "from": "t_primary", "to": "t_lookahead", "width": 1}, {"arrows": "to", "from": "t_primary", "to": "slices", "width": 1}, {"arrows": "to", "from": "t_primary", "to": "genexp", "width": 1}, {"arrows": "to", "from": "t_primary", "to": "arguments", "width": 1}, {"arrows": "to", "from": "t_primary", "to": "atom", "width": 1}, {"arrows": "to", "from": "star_atom", "to": "target_with_star_atom", "width": 1}, {"arrows": "to", "from": "star_atom", "to": "star_targets_tuple_seq", "width": 1}, {"arrows": "to", "from": "star_atom", "to": "star_targets_list_seq", "width": 1}, {"arrows": "to", "from": "fstring_format_spec", "to": "fstring_replacement_field", "width": 1}, {"arrows": "to", "from": "star_targets_tuple_seq", "to": "star_target", "width": 1}, {"arrows": "to", "from": "star_targets_list_seq", "to": "star_target", "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": true
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+                  // if this network requires displaying the configure window,
+                  // put it in its div
+                  options.configure["container"] = document.getElementById("config");
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+                    network.on("selectNode", neighbourhoodHighlight);
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>

@@ -12,9 +12,13 @@ dependencies = [
 [dependency-groups]
 dev = [
     "hypothesis>=6.124.2",
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.10.0",
+    "networkx>=3.4.2",
     "pegen>=0.3.0",
     "pyright>=1.1.392.post0",
     "pytest>=8.3.4",
+    "pyvis>=0.3.2",
     "ruff>=0.9.3",
     "typer>=0.15.1",
 ]
