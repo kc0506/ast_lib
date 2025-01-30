@@ -82,6 +82,7 @@ class UnparserWithComments(NodeVisitor):
         self.ignore_prefixes = ignore_prefixes or []
 
     def write_comments_until_line(self, line: int):
+        last_is_comment = False
         while self.tokens:
             cur = self.tokens[-1]
             if cur.type == tokenize.NEWLINE or cur.type == tokenize.NL:
@@ -90,19 +91,23 @@ class UnparserWithComments(NodeVisitor):
                 self.tokens.pop()
                 continue
 
-            if self.token_line > line:
+            if self.token_line >= line:
                 break
 
             self.tokens.pop()
             if cur.type == tokenize.COMMENT:
-                # print("write line (until line) ", self.token_line, cur.string)
+                print("write line (until line) ", self.token_line, cur.string)
                 if all(
                     not cur.string.removeprefix("# ").startswith(prefix)
                     for prefix in self.ignore_prefixes
                 ):
-                    self.write("\n", cur.string, "\n")
+                    if not last_is_comment and cur.line.strip().startswith(cur.string):
+                        self.write("\n\n")
+                    self.write(cur.string, "\n")
+                    last_is_comment = True
 
     def write_comments_until_op(self, op: str, max_line: int | None = None):
+        last_is_comment = False
         while self.tokens and (max_line is None or self.token_line <= max_line):
             cur = self.tokens.pop()
             if cur.type == tokenize.NEWLINE or cur.type == tokenize.NL:
@@ -112,12 +117,15 @@ class UnparserWithComments(NodeVisitor):
                 break
 
             if cur.type == tokenize.COMMENT:
-                # print("write line (until op) ", self.token_line, cur.string)
+                print("write line (until op) ", self.token_line, cur.string)
                 if all(
                     not cur.string.removeprefix("# ").startswith(prefix)
                     for prefix in self.ignore_prefixes
                 ):
-                    self.write("\n", cur.string, "\n")
+                    if not last_is_comment and cur.line.strip().startswith(cur.string):
+                        self.write("\n\n")
+                    self.write(cur.string, "\n")
+                    last_is_comment = True
 
     def interleave(self, inter, f, seq):
         """Call f on each item in seq, calling inter() in between."""
@@ -149,6 +157,7 @@ class UnparserWithComments(NodeVisitor):
     def fill(self, text=""):
         """Indent a piece of text and append it, according to the current
         indentation level"""
+        # TODO: maybe write comments here
         self.maybe_newline()
         self.write("    " * self._indent + text)
 
@@ -386,7 +395,7 @@ class UnparserWithComments(NodeVisitor):
         self.fill("raise")
         if not node.exc:
             if node.cause:
-                raise ValueError(f"Node can't use cause without an exception.")
+                raise ValueError("Node can't use cause without an exception.")
             return
         self.write(" ")
         self.traverse(node.exc)
@@ -443,7 +452,7 @@ class UnparserWithComments(NodeVisitor):
             self.traverse(deco)
         self.fill("class " + node.name)
         if hasattr(node, "type_params"):
-            self._type_params_helper(node.type_params)
+            self._type_params_helper(node.type_params, trail_comma=True)
         with self.delimit_if("(", ")", condition=node.bases or node.keywords):
             comma = False
             for e in node.bases:
@@ -473,6 +482,7 @@ class UnparserWithComments(NodeVisitor):
     ):
         self.maybe_newline()
         for deco in node.decorator_list:
+            self.write_comments_until_line(deco.lineno)
             self.fill("@")
             self.traverse(deco)
         def_str = fill_suffix + " " + node.name
@@ -490,11 +500,12 @@ class UnparserWithComments(NodeVisitor):
         with self.block(extra=self.get_type_comment(node)):
             self._write_docstring_and_traverse_body(node)
 
-    def _type_params_helper(self, type_params):
+    def _type_params_helper(self, type_params, trail_comma=False):
         if type_params is not None and len(type_params) > 0:
             with self.delimit("[", "]"):
                 self.interleave(lambda: self.write(", "), self.traverse, type_params)
-                self.write(",")
+                if trail_comma:
+                    self.write(",")
 
     def visit_TypeVar(self, node):
         self.write(node.name)

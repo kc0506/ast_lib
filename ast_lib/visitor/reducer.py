@@ -1,10 +1,4 @@
 # Synced by scripts/sync_visitor_with_pyi.py with reducer.proto.pyi
-
-
-# Synced by scripts/sync_visitor_with_pyi.py with reducer.proto.pyi
-# Synced by scripts/sync_visitor_with_pyi.py with reducer.proto.pyi
-# Synced by scripts/sync_visitor_with_pyi.py with reducer.proto.pyi
-# Synced by scripts/sync_visitor_with_pyi.py with reducer.proto.pyi
 # TODO: multiple map
 # TODO: return key-value pair in map collector
 # TODO: visitor_type, return_type
