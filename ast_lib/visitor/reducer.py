@@ -5,11 +5,22 @@
 
 from __future__ import annotations
 import ast
-from typing import Callable, Generator, Literal, TypedDict, Unpack, cast
-from ..match_pattern import MATCH_TYPE_HINT_DEFAULT, MatchResult, MatchTypeHint
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generator,
+    Literal,
+    TypedDict,
+    Unpack,
+    cast,
+)
 from .core import Hook, HookProvider
 from .exception import SkipNode
 from .utils import DescriptorHelper, invoke_callback
+
+if TYPE_CHECKING:
+    from ..pattern import MatchResult, MatchTypeHint
 
 # ---------------------------------------------------------------------------- #
 #                         Types (overlapped with .pyi)                         #
@@ -60,7 +71,7 @@ _DEFAULT_OPTIONS: ReducerOptions = {
     "mode": "before",
     "before": (),
     "pattern": None,
-    "match_type_hint": MATCH_TYPE_HINT_DEFAULT,
+    "match_type_hint": cast(Any, None),
 }
 
 # ------------------------------- Base Reducer ------------------------------- #

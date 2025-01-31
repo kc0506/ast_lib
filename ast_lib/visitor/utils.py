@@ -5,7 +5,7 @@ import inspect
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
-    from ..match_pattern import MatchResult
+    from ..pattern import MatchResult
 
 
 def check_callback_signature(

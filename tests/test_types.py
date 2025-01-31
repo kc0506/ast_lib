@@ -4,8 +4,7 @@ from __future__ import annotations
 import ast
 from typing import Any, Generator, Mapping, TypedDict, assert_never, assert_type
 
-from ast_lib import nodes
-from ast_lib.match_pattern import MatchResult, MatchTypeHint, match_node
+from ast_lib.pattern import MatchResult, MatchTypeHint, match_node, nodes
 from ast_lib.visitor.context import NodeContextVar, node_context
 from ast_lib.visitor.core import BaseNodeVisitor
 from ast_lib.visitor.presets import pure_visit

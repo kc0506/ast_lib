@@ -27,10 +27,7 @@ from typing import (
     runtime_checkable,
 )
 
-from ast_lib.match_pattern import MatchResult
-from ast_lib.pattern import parse_pattern
-
-from .. import nodes
+from ..pattern import MatchResult, nodes, parse_pattern
 from .exception import SkipVisit
 
 type HookMode = Literal["before", "after", "wrap"]

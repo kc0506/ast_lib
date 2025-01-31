@@ -1,12 +1,15 @@
 import ast
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
 )
 
-from ..match_pattern import MatchResult
 from .core import Hook, HookMode, HookProvider
 from .utils import DescriptorHelper
+
+if TYPE_CHECKING:
+    from ..pattern import MatchResult
 
 type NodeTypes[N] = type[N] | tuple[type[N], ...]
 type VisitHook[VisitorT: ast.NodeVisitor, N: ast.AST] = (

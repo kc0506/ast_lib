@@ -15,7 +15,7 @@ from typing import Any, Literal, cast, overload
 from loguru import logger
 
 from . import nodes
-from .pattern import parse_pattern
+from .parse import parse_pattern
 
 logger.remove()
 
@@ -194,7 +194,7 @@ def match_node[N: ast.AST, *T, K: dict](
     target: ast.AST,
     #
     assert_match: bool = False,
-    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,  # pyright: ignore
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
 ) -> MatchResult[N, *T, K] | None:
     sink = io.StringIO()
     handler_id = logger.add(sink, format="{message}")
@@ -209,11 +209,13 @@ def match_node[N: ast.AST, *T, K: dict](
         if int_keys:
             assert int_keys == list(range(min(int_keys), max(int_keys) + 1))
 
-        args: Any = [None] * len(int_keys)  
+        args: Any = [None] * len(int_keys)
         for k in int_keys:
             args[k] = captures.pop(k)
 
-        return cast(Any, MatchResult(node=target, groups=tuple(args), kw_groups=captures))
+        return cast(
+            Any, MatchResult(node=target, groups=tuple(args), kw_groups=captures)
+        )
 
     if assert_match:
         raise ValueError(
@@ -248,7 +250,33 @@ def match_pattern[N: ast.AST, *T, K: dict](
     target: ast.AST,
     #
     assert_match: bool = False,
-    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,  # pyright: ignore
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
 ) -> MatchResult[N, *T, K] | None:
     pattern_node = parse_pattern(pattern)
-    return match_node(pattern_node, target, assert_match=assert_match)  # pyright: ignore
+
+    assert_match = cast(Literal[False], assert_match)
+    res = match_node(pattern_node, target, assert_match=assert_match)
+    return res  # pyright: ignore
+
+
+def match_all[N: ast.AST, *T, K: dict](
+    pattern: str | nodes.AST,
+    targets: list[ast.AST],
+    *,
+    assert_all: bool = False,
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
+) -> list[MatchResult[N, *T, K]]:
+    if isinstance(pattern, str):
+        pattern = parse_pattern(pattern)
+
+    results: list[MatchResult] = []
+    for target in targets:
+        res = match_node(pattern, target)
+        if res is None:
+            if assert_all:
+                raise ValueError(f"Pattern {pattern} does not match: {target}")
+            continue
+
+        results.append(res)
+
+    return cast(Any, results)

@@ -1,17 +1,21 @@
 import ast
 from contextlib import contextmanager
 from typing import (
+    TYPE_CHECKING,
     Callable,
     Iterator,
     Literal,
     overload,
 )
 
-from ..match_pattern import MatchResult
 from .core import Hook, HookProvider
 from .utils import DescriptorHelper
 
+if TYPE_CHECKING:
+    from ..pattern import MatchResult
+
 type NodeTypes[N] = type[N] | tuple[type[N], ...]
+
 type GetValue[VisitorT, N: ast.AST, T, *Args, Kwargs: dict] = (
     Callable[[N], T]
     | Callable[[VisitorT, N], T]
@@ -93,7 +97,6 @@ def node_context[
     Kwargs: dict,
 ](
     *node_types: type[N],
-
     pred: GetValue[VisitorT, N, bool, *Args, Kwargs] | None = None,
 ) -> Callable[
     [GetValue[VisitorT, N, T, *Args, Kwargs]],

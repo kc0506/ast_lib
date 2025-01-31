@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import pytest
 from hypothesis import given
 
-from ast_lib.nodes import *
 from ast_lib.pattern import parse_pattern
+from ast_lib.pattern.nodes import *
 
 
 @dataclass

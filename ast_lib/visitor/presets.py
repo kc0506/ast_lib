@@ -1,4 +1,5 @@
 # Synced by scripts/sync_visitor_with_pyi.py with presets.proto.pyi
+# Synced by scripts/sync_visitor_with_pyi.py with presets.proto.pyi
 # TODO: indent level
 # TODO: qualname
 
@@ -6,7 +7,7 @@ from __future__ import annotations
 import ast
 from contextlib import contextmanager
 from typing import Any, Callable
-from ..match_pattern import MatchResult
+from ..pattern import MatchResult
 from .core import Hook, HookMode, HookProvider
 from .utils import DescriptorHelper, invoke_callback
 

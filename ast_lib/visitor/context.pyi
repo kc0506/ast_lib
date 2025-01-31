@@ -2,11 +2,12 @@
 
 import ast
 from contextlib import contextmanager
-from typing import Callable, Iterator, Literal, overload
-from ..match_pattern import MatchResult
+from typing import TYPE_CHECKING, Callable, Iterator, Literal, overload
 from .core import Hook, HookProvider
 from .utils import DescriptorHelper
 
+if TYPE_CHECKING:
+    from ..pattern import MatchResult
 type _TrueType = Literal[True]
 type _FalseType = Literal[False]
 

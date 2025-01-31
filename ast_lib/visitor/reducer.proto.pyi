@@ -1,9 +1,11 @@
 import ast
-from typing import Callable, Generator, Literal, TypedDict, Unpack
+from typing import TYPE_CHECKING, Callable, Generator, Literal, TypedDict, Unpack
 
-from ..match_pattern import MatchResult, MatchTypeHint
 from .core import Hook, HookProvider
 from .utils import DescriptorHelper
+
+if TYPE_CHECKING:
+    from ..pattern import MatchResult, MatchTypeHint
 
 type ReducerHookMode = Literal["before", "after"]
 

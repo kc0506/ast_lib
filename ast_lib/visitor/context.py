@@ -8,7 +8,7 @@ from __future__ import annotations
 import ast
 from contextlib import contextmanager
 from typing import Callable, Iterator, Literal
-from ..match_pattern import MatchResult
+from ..pattern import MatchResult
 from .core import Hook, HookProvider
 from .exception import SkipNode
 from .utils import DescriptorHelper, invoke_callback
@@ -29,12 +29,11 @@ class NodeContextVar[
     VisitorT: ast.NodeVisitor,
     N: ast.AST,
     T,
+    #
     _HasDefault: _TrueType | _FalseType,
     *Args,
     Kwargs: dict,
 ](HookProvider, DescriptorHelper):
-    #
-
     def __init__(
         self,
         node_types: NodeTypes[N],

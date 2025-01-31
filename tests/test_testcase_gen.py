@@ -7,7 +7,6 @@ from hypothesis import given
 from hypothesis.errors import NonInteractiveExampleWarning
 from rich import print
 
-from ast_lib import nodes
 from ast_lib.pattern import parse_pattern
 # from ast_lib.testcase_generator import TestcaseGenerator
 

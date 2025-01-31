@@ -198,7 +198,7 @@ def sync_with_pyi(module_name: str):
         # transformed: str = unparser.visit(ast.fix_missing_locations(m))
         transformed: str = unparser.visit(m)
 
-    header = f"# Synced by scripts/{Path(__file__).name} with {proto_path.name}\n\n"
+    header = f"# Synced by scripts/{Path(__file__).name} with {proto_path.name}\n"
 
     # new_path = proto_path.parent / f"{module_name}.new.py"
     new_path = original_path

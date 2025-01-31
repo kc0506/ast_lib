@@ -99,8 +99,10 @@ def transform_pyi(module_name: str):
         return
 
     original_path = proto_path.parent / f"{module_name}.pyi"
-    backup_path = proto_path.parent / f"{module_name}.backup.pyi"
-    shutil.copy(original_path, backup_path)
+
+    # TODO
+    # backup_path = proto_path.parent / f"{module_name}.backup.pyi"
+    # shutil.copy(original_path, backup_path)
 
     with open(proto_path, "r", encoding="utf-8") as f:
         proto_content = f.read()

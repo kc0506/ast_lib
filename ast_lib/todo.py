@@ -17,6 +17,7 @@
 # use regex for name 
 # grouped pattern, e.g. $() 
 # use || for union
+# nodes.__all__
 
 # 3. syntax for args; not provided => empty or wildcard? decorators?
 # 4. match_all, instance filter

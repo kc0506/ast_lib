@@ -1,9 +1,8 @@
 from __future__ import annotations
-import tokenize
-from io import StringIO, TextIOWrapper
-from typing import Protocol
 
-from pegen.parser import Parser
+import tokenize
+from io import StringIO
+
 from pegen.tokenizer import Tokenizer
 
 from . import nodes
