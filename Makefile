@@ -25,8 +25,9 @@ sync-visitor:
 .PHONY: gen-nodes
 gen-nodes:
 	uv run -m scripts.gen_nodes
-	uv run ruff format ast_lib/nodes.py
-	uv run ruff check ast_lib/nodes.py --fix
+	uv run ruff format ast_lib/pattern/nodes.py
+	uv run ruff check ast_lib/pattern/nodes.py --fix
+
 
 .PHONY: gen-dsl
 gen-dsl:

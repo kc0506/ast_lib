@@ -17,7 +17,7 @@ METAGRAMMAR_FILE = Path(__file__).parent / "data" / "modified_metagrammar.gram"
 GRAMMAR_FILE = Path(__file__).parent / "data" / "match.gram"
 
 GENERATED_PARSER_FILE = Path(__file__).parent / "generated_parser.py"
-DSL_PARSER_FILE = Path() / "ast_lib" / "dsl_parser.py"
+DSL_PARSER_FILE = Path() / "ast_lib" / "pattern" / "dsl_parser.py"
 TESTCASE_GENERATOR_FILE = Path() / "ast_lib" / "testcase_generator.py"
 
 app = Typer()

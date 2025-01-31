@@ -23,7 +23,7 @@ from ast_lib.visitor.exception import SkipVisit
 from ast_lib.visitor.presets import ParentMap
 
 INPUT = Path(__file__).parent / "data" / "ast.pyi"
-OUTPUT = Path() / "ast_lib" / "nodes.py"
+OUTPUT = Path() / "ast_lib" / "pattern" / "nodes.py"
 
 
 CUSTOM_BASES = ("arguments",)
@@ -425,7 +425,9 @@ class Visitor(BaseNodeVisitor):
             ast.If(
                 test=parse_as_expr("TYPE_CHECKING"),
                 body=[
-                    parse_as_stmt(f"match: Matchable[ast.{node.name}]=field(init=False)"),
+                    parse_as_stmt(
+                        f"match: Matchable[ast.{node.name}]=field(init=False)"
+                    ),
                 ],
                 orelse=[],
             )
