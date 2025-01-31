@@ -10,7 +10,7 @@ import re
 
 # from pydantic.dataclasses import dataclass
 from dataclasses import dataclass
-from typing import Any, Literal, cast, overload
+from typing import Any, Iterable, Literal, Sequence, cast, overload
 
 from loguru import logger
 
@@ -259,9 +259,50 @@ def match_pattern[N: ast.AST, *T, K: dict](
     return res  # pyright: ignore
 
 
+@overload
+def match_first[N: ast.AST, *T, K: dict](
+    pattern: str | nodes.AST,
+    targets: Iterable[ast.AST],
+    *,
+    assert_match: Literal[False] = False,
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
+) -> MatchResult[N, *T, K] | None: ...
+
+
+@overload
+def match_first[N: ast.AST, *T, K: dict](
+    pattern: str | nodes.AST,
+    targets: Iterable[ast.AST],
+    *,
+    assert_match: Literal[True],
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
+) -> MatchResult[N, *T, K]: ...
+
+
+def match_first[N: ast.AST, *T, K: dict](
+    pattern: str | nodes.AST,
+    targets: Iterable[ast.AST],
+    *,
+    assert_match: bool = False,
+    match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
+) -> MatchResult[N, *T, K] | None:
+    if isinstance(pattern, str):
+        pattern = parse_pattern(pattern)
+
+    for target in targets:
+        res = match_node(pattern, target)
+        if res is not None:
+            return cast(MatchResult[N, *T, K], res)
+
+    if assert_match:
+        nodes_str = "\n".join(ast.unparse(target) for target in targets)
+        raise ValueError(f"Pattern {pattern} does not match:\n{nodes_str}")
+    return None
+
+
 def match_all[N: ast.AST, *T, K: dict](
     pattern: str | nodes.AST,
-    targets: list[ast.AST],
+    targets: Iterable[ast.AST],
     *,
     assert_all: bool = False,
     match_type_hint: MatchTypeHint[N, *T, K] = MATCH_TYPE_HINT_DEFAULT,
