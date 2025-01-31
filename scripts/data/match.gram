@@ -151,12 +151,17 @@ ellipsis[Any]:
 # ------------------------------- Expressions ------------------------------ #
 
 exprs[list[ASTPattern[expr]]]:
+    | '~' '*' { WildcardRepeat0() }
+    | '~' '+' { WildcardRepeat1() }
+    | '$' n=NAME '{' pattern=exprs '}' { Capture(name=n.string, pattern=pattern) }
+    | '$' n=NUMBER '{' pattern=exprs '}' { Capture(name=int(n.string), pattern=pattern) }
     | a[list[ASTPattern[expr]]]=','.expr+ ','? { a }
 
 expr[ASTPattern[expr]]:
     | a=disjunction 'if' b=disjunction 'else' c=expr { IfExp(a,b,c) }
     | disjunction
     | lambdef
+
 
 yield_expr[ASTPattern[expr]]:
     | 'yield' 'from' a=expr { YieldFrom(a) }

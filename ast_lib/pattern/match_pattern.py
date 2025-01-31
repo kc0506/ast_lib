@@ -118,12 +118,22 @@ def _match_node(
             continue
 
         while isinstance(child, nodes.Capture):
+            # TODO: match or record first
             captures[child.name] = getattr(target_node, name)
             debug_log(f"Child {name} is capture, expand", depth)
             child = child.pattern
 
         target_child = getattr(target_node, name)
         if isinstance(target_child, list):
+            if isinstance(child, nodes.WildcardRepeat0):
+                continue
+
+            if isinstance(child, nodes.WildcardRepeat1):
+                if len(target_child) == 0:
+                    debug_log(f"Child {name} is list, but target is empty", depth)
+                    return False
+                continue
+
             assert isinstance(child, list)
 
             if len(target_child) != len(child):

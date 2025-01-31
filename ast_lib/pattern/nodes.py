@@ -198,6 +198,16 @@ class Wildcard(expr):
     pass
 
 
+@dataclass(frozen=True)
+class WildcardRepeat0(expr):
+    pass
+
+
+@dataclass(frozen=True)
+class WildcardRepeat1(expr):
+    pass
+
+
 if TYPE_CHECKING:
 
     @dataclass(frozen=True)
@@ -2659,6 +2669,8 @@ __all__ = (
     "expr",
     "_arguments_utils",
     "Wildcard",
+    "WildcardRepeat0",
+    "WildcardRepeat1",
     "WildcardId",
     "WildcardId",
     "Capture",

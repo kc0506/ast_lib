@@ -114,6 +114,18 @@ EXAMPLES = [
     # Testcase(
     #     "def __str__():...", ["def __str__(self, *args):\n\ta"], ["def str(): ..."]
     # ),
+    Case("return ~.format(~*)", ['return "a".format(b, c)']),
+    Case(
+        "return ~.format($0{~+})",
+        [
+            ExpectedMatch(
+                'return "a".format(b, c)',
+                ast.Return,
+                group_types=(list,),
+            ),
+        ],
+        ['return "a".format()'],
+    ),
 ]
 
 

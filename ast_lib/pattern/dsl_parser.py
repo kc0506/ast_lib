@@ -437,8 +437,48 @@ class DSLParser(Parser):
 
     @memoize
     def exprs(self) -> Optional[list [ASTPattern [expr]]]:
-        # exprs: ','.expr+ ','?
+        # exprs: '~' '*' | '~' '+' | '$' NAME '{' exprs '}' | '$' NUMBER '{' exprs '}' | ','.expr+ ','?
         mark = self._mark()
+        if (
+            (self.expect('~'))
+            and
+            (self.expect('*'))
+        ):
+            return WildcardRepeat0 ( );
+        self._reset(mark)
+        if (
+            (self.expect('~'))
+            and
+            (self.expect('+'))
+        ):
+            return WildcardRepeat1 ( );
+        self._reset(mark)
+        if (
+            (self.expect('$'))
+            and
+            (n := self.name())
+            and
+            (self.expect('{'))
+            and
+            (pattern := self.exprs())
+            and
+            (self.expect('}'))
+        ):
+            return Capture ( name = n . string , pattern = pattern );
+        self._reset(mark)
+        if (
+            (self.expect('$'))
+            and
+            (n := self.number())
+            and
+            (self.expect('{'))
+            and
+            (pattern := self.exprs())
+            and
+            (self.expect('}'))
+        ):
+            return Capture ( name = int ( n . string ) , pattern = pattern );
+        self._reset(mark)
         if (
             (a := cast(list [ASTPattern [expr]], self._gather_4()))
             and
