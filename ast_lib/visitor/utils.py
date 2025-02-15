@@ -67,3 +67,8 @@ class DescriptorHelper:
 
     def _set_attr(self, instance: ast.NodeVisitor, name: str, value: Any) -> None:
         setattr(instance, self._make_attr_name(name), value)
+
+    def _set_attr_default(self, instance: ast.NodeVisitor, name: str, value: Any) -> Any:
+        if not self._has_attr(instance, name):
+            self._set_attr(instance, name, value)
+        return self._get_attr(instance, name)

@@ -132,3 +132,14 @@ def node_context[
     [GetValue[VisitorT, N, T, *Args, Kwargs]],
     NodeContextVar[VisitorT, N, T, _TrueType, *Args, Kwargs],
 ]: ...
+
+class ManualContextVar[VisitorT: ast.NodeVisitor, T](DescriptorHelper):
+    def __init__(self, init: Callable[[], T] | T | None = None):
+        self.init = init
+
+    def __get__(
+        self, instance: ast.NodeVisitor, owner: type[ast.NodeVisitor]
+    ) -> T | None: ...
+    def __set__(self, instance: ast.NodeVisitor, value: T) -> None: ...
+    @contextmanager
+    def push(self, instance: ast.NodeVisitor, value: T) -> Iterator[None]: ...
