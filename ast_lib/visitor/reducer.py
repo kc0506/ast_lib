@@ -129,7 +129,7 @@ class NodeReducer[
             func,
             setup=setup,
             before=self.options.get("before", _DEFAULT_OPTIONS["before"]),
-            pattern=self.options.get("patterns", _DEFAULT_OPTIONS["pattern"]),
+            pattern=self.options.get("pattern", _DEFAULT_OPTIONS["pattern"]),
         )
 
 
