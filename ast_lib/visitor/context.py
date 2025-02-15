@@ -26,7 +26,6 @@ type _FalseType = Literal[False]
 
 
 class NodeContextVar[
-    #
     VisitorT: ast.NodeVisitor,
     N: ast.AST,
     T,
@@ -127,27 +126,25 @@ class ManualContextVar[
     VisitorT: ast.NodeVisitor,
     T,
 ](DescriptorHelper):
-    def __init__(self, init: Callable[[], T] | T | None = None):
+    def __init__(self, init: Callable[[VisitorT], T] | T | None = None):
         self.init = init
 
-    def __get__(
-        self, instance: ast.NodeVisitor, owner: type[ast.NodeVisitor]
-    ) -> T | None:
+    def __get__(self, instance: VisitorT, owner: type[VisitorT]) -> T | None:
         stack: list[T] = self._set_attr_default(instance, "stack", [])
         if len(stack) == 0:
             if self.init is None:
                 raise ValueError("No context stack to get value")
             if isinstance(self.init, Callable):
-                return self.init()
+                return self.init(instance)
             return self.init
         return stack[-1]
 
-    def __set__(self, instance: ast.NodeVisitor, value: T) -> None:
+    def __set__(self, instance: VisitorT, value: T) -> None:
         stack: list[T] = self._set_attr_default(instance, "stack", [])
         stack[-1] = value
 
     @contextmanager
-    def push(self, instance: ast.NodeVisitor, value: T) -> Iterator[None]:
+    def push(self, instance: VisitorT, value: T) -> Iterator[None]:
         stack: list[T] = self._get_attr(instance, "stack")
         before_len = len(stack)
         stack.append(value)
