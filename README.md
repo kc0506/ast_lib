@@ -266,6 +266,34 @@ print(visitor.class_hierarchy)
 """
 ```
 
+Explanation of the example:
+
+```python
+# initial stack of `class_namespace`: [[]]
+
+# push ["Animal"] to `class_namespace` => [[], ["Animal"]]
+class Animal:
+    pass
+# pop `class_namespace` => [[]]
+
+class Mammal(Animal):
+    # push ["Animal"] to `class_namespace` => [[], ["Animal"]]
+    class Dog(Animal):  # Nested class
+        # push ["Animal", "Dog"] to `class_namespace` => [[], ["Animal"], ["Animal", "Dog"]]
+        pass
+    # pop `class_namespace` => [[], ["Animal"]]
+
+    class Cat(Animal):
+        # push ["Animal", "Cat"] to `class_namespace` => [[], ["Animal"], ["Animal", "Cat"]]
+        pass
+    # pop `class_namespace` => [[], ["Animal"]]
+
+class Bird(Animal):
+    # push ["Animal"] to `class_namespace` => [[], ["Animal"]]
+    pass
+# pop `class_namespace` => [[]]
+```
+
 This example demonstrates several key features:
 
 1. Context tracking with `class_namespace` to handle nested classes
