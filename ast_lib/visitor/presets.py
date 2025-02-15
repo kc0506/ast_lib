@@ -1,7 +1,7 @@
 # Synced by scripts/sync_visitor_with_pyi.py with presets.proto.pyi
-# Synced by scripts/sync_visitor_with_pyi.py with presets.proto.pyi
 # TODO: indent level
 # TODO: qualname
+# TODO: path
 
 from __future__ import annotations
 import ast

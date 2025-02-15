@@ -122,6 +122,7 @@ def node_context[VisitorT: ast.NodeVisitor, N: ast.AST, T, *Args, Kwargs: dict](
     return decorator
 
 
+# TODO: return the stack in __get__
 class ManualContextVar[
     VisitorT: ast.NodeVisitor,
     T,

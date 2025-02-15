@@ -5,3 +5,5 @@ __pycache__/
 .vscode/
 lib/
 a.py
+.cursor/
+test.py
