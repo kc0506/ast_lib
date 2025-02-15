@@ -1,4 +1,4 @@
-# AST Pattern Matching Library
+# `ast_lib`
 
 **🚧 This library is currently under development.**
 
@@ -199,6 +199,7 @@ class MyVisitor(BaseNodeVisitor):
 Here's a real-world example that collects all class names and their base classes from a module:
 
 ```python
+import ast
 from ast_lib import BaseNodeVisitor, node_context, nodemap_collector
 
 class ClassHierarchyVisitor(BaseNodeVisitor):
@@ -214,10 +215,11 @@ class ClassHierarchyVisitor(BaseNodeVisitor):
         return ".".join(self.class_namespace)
 
     # Collect class definitions with their base classes
-    @nodemap_collector(
-        ast.ClassDef,
-        get_key=lambda self, node: self.current_class_name
-    )
+
+    def get_qualname(self, node: ast.ClassDef) -> str:
+        return self.current_class_name
+
+    @nodemap_collector(ast.ClassDef, get_key=get_qualname)
     def class_hierarchy(self, node: ast.ClassDef) -> list[str]:
         # Extract base class names
         base_names = []
@@ -227,6 +229,7 @@ class ClassHierarchyVisitor(BaseNodeVisitor):
             elif isinstance(base, ast.Attribute):
                 base_names.append(base.attr)
         return base_names
+
 
 # Usage:
 source = """
@@ -250,13 +253,15 @@ visitor.visit(tree)
 
 # Results:
 print(visitor.class_hierarchy)
-# {
-#     'Animal': [],
-#     'Mammal': ['Animal'],
-#     'Mammal.Dog': ['Animal'],
-#     'Mammal.Cat': ['Animal'],
-#     'Bird': ['Animal']
-# }
+"""
+{
+    'Animal': [],
+    'Mammal': ['Animal'],
+    'Mammal.Dog': ['Animal'],
+    'Mammal.Cat': ['Animal'],
+    'Bird': ['Animal']
+}
+"""
 ```
 
 This example demonstrates several key features:
