@@ -11,7 +11,7 @@ from loguru import logger
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 
-from ast_lib.pattern import parse_pattern
+from ast_lib.pattern import _set_debug, parse_pattern
 
 
 @dataclass
@@ -114,6 +114,11 @@ EXAMPLES = [
     # Testcase(
     #     "def __str__():...", ["def __str__(self, *args):\n\ta"], ["def str(): ..."]
     # ),
+    Case(
+        "def __str__(self): ...",
+        ["def __str__(self):..."],
+        ["def __str__(self, *args):...", "def f():...", "def __str__():..."],
+    ),
     Case("return ~.format(~*)", ['return "a".format(b, c)']),
     Case(
         "return ~.format($0{~+})",
@@ -135,10 +140,10 @@ def test_match_pattern(testcase: Case):
     for match in testcase.matches:
         if isinstance(match, str):
             res = pattern.match(match)
-            assert res is not None
+            assert res is not None, (match, pattern)
         else:
             res = pattern.match(match.pattern)
-            assert res is not None
+            assert res is not None, (match, pattern)
             assert len(res.groups) == len(match.group_types)
             assert len(res.kw_groups) == len(match.kw_group_types)
 

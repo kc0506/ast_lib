@@ -5,6 +5,7 @@ from .match_pattern import (
     match_first,
     match_node,
     match_pattern,
+    _set_debug,
 )
 from .nodes import *
 from .parse import parse_pattern
@@ -17,6 +18,7 @@ __all__ = (
     "match_pattern",
     "MatchTypeHint",
     "MatchResult",
+    "_set_debug",
 )
 
 __all__ += nodes.__all__

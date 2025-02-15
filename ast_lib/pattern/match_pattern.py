@@ -17,6 +17,14 @@ from loguru import logger
 from . import nodes
 from .parse import parse_pattern
 
+_debug_mode = False
+
+
+def _set_debug(debug: bool):
+    global _debug_mode
+    _debug_mode = debug
+
+
 logger.remove()
 
 
@@ -57,8 +65,8 @@ def _match_field(
 
 
 def _match_node(
-    pattern_node: nodes.AST,
-    target_node: ast.AST,
+    pattern_node: nodes.AST | None,
+    target_node: ast.AST | None,
     depth: float,
     captures: dict[str | int, Any],
 ) -> bool:
@@ -88,6 +96,13 @@ def _match_node(
         debug_log("Pattern is capture, expand", depth)
         assert isinstance(pattern_node.pattern, nodes.AST)
         return _match_node(pattern_node.pattern, target_node, depth + 1, captures)
+
+    if pattern_node is None:
+        debug_log("Pattern is None, shortcut", depth)
+        return target_node is None
+    if target_node is None:
+        debug_log("Target is None, mismatch", depth)
+        return False
 
     if not issubclass(target_node.__class__, pattern_node.ast_class):
         debug_log(f"{pattern_node} is not {target_node.__class__}, mismatch", depth)
@@ -227,7 +242,7 @@ def match_node[N: ast.AST, *T, K: dict](
             Any, MatchResult(node=target, groups=tuple(args), kw_groups=captures)
         )
 
-    if assert_match:
+    if assert_match or _debug_mode:
         raise ValueError(
             f"Pattern {pattern_node} does not match:\n{ast.unparse(target)}\n"
             "Traceback:\n"

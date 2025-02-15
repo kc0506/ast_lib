@@ -175,12 +175,17 @@ class Visitor(BaseNodeVisitor):
         "type_param",
     )
 
+    # TODO
     EXCLUDE_FIELDS = (
         "body",
         "orelse",
         "type_comment",
         "type_params",
         "ctx",
+        "lineno",
+        "col_offset",
+        "end_lineno",
+        "end_col_offset",
     )
 
     VERSION = (3, 12)
@@ -346,7 +351,7 @@ class Visitor(BaseNodeVisitor):
                 raise ValueError(f"Unexpected target: {ast.dump(node.target)}")
 
         # * Do we handle this field?
-        # if id in self.EXCLUDE_FIELDS:
+        # if field_id in self.EXCLUDE_FIELDS:
         #     return
 
         # * Process annotation

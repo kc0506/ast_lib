@@ -18,6 +18,7 @@
 # grouped pattern, e.g. $() 
 # use || for union
 # nodes.__all__
+# .groups on `match_all`
 
 # 3. syntax for args; not provided => empty or wildcard? decorators?
 # 4. match_all, instance filter

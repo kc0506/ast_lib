@@ -5,13 +5,14 @@ import tokenize
 from pathlib import Path
 from typing import IO, Callable, Optional
 
-from pegen.grammar import Alt, Grammar, GrammarVisitor, Group, NamedItem, NameLeaf, Rule
+from pegen.grammar import *
 from pegen.grammar_parser import GeneratedParser
 from pegen.python_generator import PythonCallMakerVisitor, PythonParserGenerator
 from pegen.tokenizer import Tokenizer
 from typer import Typer
 
-from .testcase_metagenerator import TestcaseCallMakerVisitor, TestcaseMetaGenerator
+
+# TODO: custom base
 
 METAGRAMMAR_FILE = Path(__file__).parent / "data" / "modified_metagrammar.gram"
 GRAMMAR_FILE = Path(__file__).parent / "data" / "match.gram"
@@ -65,8 +66,33 @@ class TestVisitor(GrammarVisitor):
 
 
 class CustomPythonCallMakerVisitor(PythonCallMakerVisitor):
-    def visit_Group(self, node: Group) -> tuple[Optional[str], str]:
-        return super().visit_Group(node)
+    # def visit_Group(self, node: Group) -> tuple[Optional[str], str]:
+    #     return super().visit_Group(node)
+
+    def add_repeat_type(self, name: str):
+        # if name=='_loop1_8':
+        #     breakpoint()
+
+        assert name in self.gen.todo
+        rule = self.gen.todo[name]
+        assert len(rule.rhs.alts) == 1
+        alt = rule.rhs.alts[0]
+        assert isinstance(alt, Alt)
+        assert len(alt.items) == 1
+        item = alt.items[0]
+        if isinstance(item.item, NameLeaf):
+            if leaf_rule := self.gen.all_rules.get(item.item.value):
+                rule.type = f"list[{leaf_rule.type}]"
+
+    def visit_Repeat0(self, node: Repeat0) -> tuple[str, str]:
+        name, call = super().visit_Repeat0(node)
+        self.add_repeat_type(name)
+        return name, call
+
+    def visit_Repeat1(self, node: Repeat1) -> tuple[str, str]:
+        name, call = super().visit_Repeat1(node)
+        self.add_repeat_type(name)
+        return name, call
 
 
 item_types = set()
@@ -84,16 +110,66 @@ class DSLParserGenerator(PythonParserGenerator):
         super().__init__(
             grammar, file, tokens, location_formatting, unreachable_formatting
         )
+        self.all_rules.update(self.rules)
 
     def validate_rule_names(self) -> None:
         pass
 
     def visit_Rule(self, node: Rule) -> None:
+        
+        # if node.name =='_loop0_4':
+        #     print(repr(node.rhs.alts[0].itemskjj))
+        #     breakpoint()
+
         if node.name == "start":
             self.print("@wrap_start")
         elif node.name == "stmt":
             self.print("@wrap_stmt")
-        super().visit_Rule(node)
+        self.all_rules[node.name] = node
+
+        # modified from pegen.python_generator.PythonParserGenerator.visit_Rule
+        is_loop = node.is_loop()
+        is_gather = node.is_gather()
+        rhs = node.flatten()
+        if node.left_recursive:
+            if node.leader:
+                self.print("@memoize_left_rec")
+            else:
+                # Non-leader rules in a cycle are not memoized,
+                # but they must still be logged.
+                self.print("@logger")
+        else:
+            self.print("@memoize")
+        node_type = node.type or "Any"
+        if not is_loop:
+            node_type = f"Optional[{node_type}]"
+        self.print(f"def {node.name}(self) -> {node_type}:")
+        with self.indent():
+            self.print(f"# {node.name}: {rhs}")
+            if node.nullable:
+                self.print(f"# nullable={node.nullable}")
+
+            if node.name.endswith("without_invalid"):
+                self.print("_prev_call_invalid = self.call_invalid_rules")
+                self.print("self.call_invalid_rules = False")
+                self.cleanup_statements.append(
+                    "self.call_invalid_rules = _prev_call_invalid"
+                )
+
+            self.print("mark = self._mark()")
+            if self.alts_uses_locations(node.rhs.alts):
+                self.print("tok = self._tokenizer.peek()")
+                self.print("start_lineno, start_col_offset = tok.start")
+            if is_loop:
+                self.print("children = []")
+            self.visit(rhs, is_loop=is_loop, is_gather=is_gather)
+            if is_loop:
+                self.add_return("children")
+            else:
+                self.add_return("None")
+
+        if node.name.endswith("without_invalid"):
+            self.cleanup_statements.pop()
 
     def visit_NamedItem(
         self, node: NamedItem, used: Optional[set[str]], unreachable: bool
@@ -127,7 +203,6 @@ def gen_parser(
     # TODO: action
 
     # if TYPE_CHECKING:
-    from .generated_parser import GeneratedParser as CustomParser
     # else:
     #     from generated import GeneratedParser as CustomParser
 
@@ -150,6 +225,8 @@ def gen_parser(
         gen.callmakervisitor = get_callmaker(gen)  # type: ignore # pyright: ignore
         gen.generate(str(GRAMMAR_FILE))
 
+    # print(gen.rules)
+
     # print(item_types)
 
 
@@ -158,9 +235,9 @@ def gen_dsl_parser():
     gen_parser(DSLParserGenerator, CustomPythonCallMakerVisitor, DSL_PARSER_FILE)
 
 
-@app.command("testcase")
-def gen_testcase_parser():
-    gen_parser(TestcaseMetaGenerator, TestcaseCallMakerVisitor, TESTCASE_GENERATOR_FILE)
+# @app.command("testcase")
+# def gen_testcase_parser():
+#     gen_parser(TestcaseMetaGenerator, TestcaseCallMakerVisitor, TESTCASE_GENERATOR_FILE)
 
 
 if __name__ == "__main__":

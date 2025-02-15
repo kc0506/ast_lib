@@ -15,6 +15,7 @@ from typing import Any, Optional, TYPE_CHECKING, cast
 from rich import print
 from pegen.parser import memoize, memoize_left_rec, logger, Parser
 from functools import reduce, wraps
+from .parser_helpers import *
 from .nodes import *
 
 def wrap_start(fn):
@@ -50,6 +51,17 @@ def _make_dict(head, tail):
 
 # Keywords and soft keywords are listed at the end of the parser definition.
 class DSLParser(Parser):
+
+    @memoize
+    def todo(self) -> Optional[Any]:
+        # todo: 'todo'
+        mark = self._mark()
+        if (
+            (self.expect('todo'))
+        ):
+            return _Todo ( );
+        self._reset(mark)
+        return None;
 
     @wrap_start
     @memoize
@@ -161,30 +173,34 @@ class DSLParser(Parser):
 
     @memoize
     def function_def(self) -> Optional[FunctionDef]:
-        # function_def: decorators? 'def' id '(' args? ')' ellipsis?
+        # function_def: 'def' id type_params? '(' params? ')' ['->' expression] ':' '...'
         mark = self._mark()
         if (
-            (d := self.decorators(),)
-            and
             (self.expect('def'))
             and
             (n := self.id())
             and
+            (self.type_params(),)
+            and
             (self.expect('('))
             and
-            (a := self.args(),)
+            (params := self.params(),)
             and
             (self.expect(')'))
             and
-            (self.ellipsis(),)
+            (self._tmp_1(),)
+            and
+            (self.expect(':'))
+            and
+            (self.expect('...'))
         ):
-            return FunctionDef ( name = n , decorator_list = d or [] , args = a or arguments . make_empty ( ) );
+            return FunctionDef ( name = n , decorator_list = [] , args = params or arguments . make_empty ( ) );
         self._reset(mark)
         return None;
 
     @memoize
     def async_function_def(self) -> Optional[AsyncFunctionDef]:
-        # async_function_def: decorators? 'async' 'def' id '(' args? ')' ellipsis?
+        # async_function_def: decorators? 'async' 'def' id '(' params? ')' ellipsis?
         mark = self._mark()
         if (
             (d := self.decorators(),)
@@ -197,7 +213,7 @@ class DSLParser(Parser):
             and
             (self.expect('('))
             and
-            (a := self.args(),)
+            (a := self.params(),)
             and
             (self.expect(')'))
             and
@@ -350,7 +366,7 @@ class DSLParser(Parser):
             and
             (test := self.expr())
             and
-            (self._tmp_1(),)
+            (self._tmp_2(),)
         ):
             return If ( test = test );
         self._reset(mark)
@@ -372,9 +388,9 @@ class DSLParser(Parser):
         # decorators: '\n'.decorator+
         mark = self._mark()
         if (
-            (_gather_2 := self._gather_2())
+            (_gather_3 := self._gather_3())
         ):
-            return _gather_2;
+            return _gather_3;
         self._reset(mark)
         return None;
 
@@ -407,17 +423,6 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def args(self) -> Optional[arguments]:
-        # args: exprs
-        mark = self._mark()
-        if (
-            (exprs := self.exprs())
-        ):
-            return exprs;
-        self._reset(mark)
-        return None;
-
-    @memoize
     def ellipsis(self) -> Optional[Any]:
         # ellipsis: ':' '...' | ':'
         mark = self._mark()
@@ -436,24 +441,349 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def exprs(self) -> Optional[list [ASTPattern [expr]]]:
-        # exprs: '~' '*' | '~' '+' | '$' NAME '{' exprs '}' | '$' NUMBER '{' exprs '}' | ','.expr+ ','?
+    def type_params(self) -> Optional[list [ASTPattern [expr]]]:
+        # type_params: todo
         mark = self._mark()
         if (
-            (self.expect('~'))
+            (todo := self.todo())
+        ):
+            return todo;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def params(self) -> Optional[ASTPattern [arguments]]:
+        # params: parameters
+        mark = self._mark()
+        if (
+            (parameters := self.parameters())
+        ):
+            return parameters;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def parameters(self) -> Optional[ASTPattern [arguments]]:
+        # parameters: slash_no_default param_no_default* param_with_default* star_etc? | slash_with_default param_with_default* star_etc? | param_no_default+ param_with_default* star_etc? | param_with_default+ star_etc? | star_etc
+        mark = self._mark()
+        if (
+            (a := self.slash_no_default())
             and
+            (b := self._loop0_5(),)
+            and
+            (c := self._loop0_6(),)
+            and
+            (d := self.star_etc(),)
+        ):
+            return make_arguments ( slash_without_default = a , plain_names = b , names_with_default = c , star_etc = d , );
+        self._reset(mark)
+        if (
+            (a := self.slash_with_default())
+            and
+            (b := self._loop0_7(),)
+            and
+            (c := self.star_etc(),)
+        ):
+            return make_arguments ( slash_with_default = a , names_with_default = b , star_etc = c , );
+        self._reset(mark)
+        if (
+            (a := self._loop1_8())
+            and
+            (b := self._loop0_9(),)
+            and
+            (c := self.star_etc(),)
+        ):
+            return make_arguments ( plain_names = a , names_with_default = b , star_etc = c , );
+        self._reset(mark)
+        if (
+            (a := self._loop1_10())
+            and
+            (b := self.star_etc(),)
+        ):
+            return make_arguments ( names_with_default = a , star_etc = b , );
+        self._reset(mark)
+        if (
+            (a := self.star_etc())
+        ):
+            return make_arguments ( star_etc = a );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def slash_no_default(self) -> Optional[list [arg]]:
+        # slash_no_default: param_no_default+ '/' ',' | param_no_default+ '/' &')'
+        mark = self._mark()
+        if (
+            (a := self._loop1_11())
+            and
+            (self.expect('/'))
+            and
+            (self.expect(','))
+        ):
+            return a;
+        self._reset(mark)
+        if (
+            (a := self._loop1_12())
+            and
+            (self.expect('/'))
+            and
+            (self.positive_lookahead(self.expect, ')'))
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def slash_with_default(self) -> Optional[SlashWithDefault]:
+        # slash_with_default: param_no_default* param_with_default+ '/' ',' | param_no_default* param_with_default+ '/' &')'
+        mark = self._mark()
+        if (
+            (a := self._loop0_13(),)
+            and
+            (b := self._loop1_14())
+            and
+            (self.expect('/'))
+            and
+            (self.expect(','))
+        ):
+            return SlashWithDefault ( a , b );
+        self._reset(mark)
+        if (
+            (a := self._loop0_15(),)
+            and
+            (b := self._loop1_16())
+            and
+            (self.expect('/'))
+            and
+            (self.positive_lookahead(self.expect, ')'))
+        ):
+            return SlashWithDefault ( a , b );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def star_etc(self) -> Optional[StarEtc]:
+        # star_etc: '*' param_no_default param_maybe_default* kwds? | '*' param_no_default_star_annotation param_maybe_default* kwds? | '*' ',' param_maybe_default+ kwds? | kwds
+        mark = self._mark()
+        if (
             (self.expect('*'))
+            and
+            (a := self.param_no_default())
+            and
+            (b := self._loop0_17(),)
+            and
+            (c := self.kwds(),)
+        ):
+            return StarEtc ( a , b , c );
+        self._reset(mark)
+        if (
+            (self.expect('*'))
+            and
+            (a := self.param_no_default_star_annotation())
+            and
+            (b := self._loop0_18(),)
+            and
+            (c := self.kwds(),)
+        ):
+            return StarEtc ( a , b , c );
+        self._reset(mark)
+        if (
+            (self.expect('*'))
+            and
+            (self.expect(','))
+            and
+            (b := self._loop1_19())
+            and
+            (c := self.kwds(),)
+        ):
+            return StarEtc ( None , b , c );
+        self._reset(mark)
+        if (
+            (a := self.kwds())
+        ):
+            return StarEtc ( None , [] , a );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def kwds(self) -> Optional[ASTPattern [arg]]:
+        # kwds: '**' param_no_default
+        mark = self._mark()
+        if (
+            (self.expect('**'))
+            and
+            (a := self.param_no_default())
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def param_no_default(self) -> Optional[ASTPattern [arg]]:
+        # param_no_default: param ',' | param &')'
+        mark = self._mark()
+        if (
+            (a := self.param())
+            and
+            (self.expect(','))
+        ):
+            return a;
+        self._reset(mark)
+        if (
+            (a := self.param())
+            and
+            (self.positive_lookahead(self.expect, ')'))
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def param_no_default_star_annotation(self) -> Optional[ASTPattern [arg]]:
+        # param_no_default_star_annotation: param_star_annotation ',' | param_star_annotation &')'
+        mark = self._mark()
+        if (
+            (a := self.param_star_annotation())
+            and
+            (self.expect(','))
+        ):
+            return a;
+        self._reset(mark)
+        if (
+            (a := self.param_star_annotation())
+            and
+            (self.positive_lookahead(self.expect, ')'))
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def param_with_default(self) -> Optional[NameDefaultPair]:
+        # param_with_default: param default ',' | param default &')'
+        mark = self._mark()
+        if (
+            (a := self.param())
+            and
+            (c := self.default())
+            and
+            (self.expect(','))
+        ):
+            return NameDefaultPair ( a , c );
+        self._reset(mark)
+        if (
+            (a := self.param())
+            and
+            (c := self.default())
+            and
+            (self.positive_lookahead(self.expect, ')'))
+        ):
+            return NameDefaultPair ( a , c );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def param_maybe_default(self) -> Optional[NameDefaultPair]:
+        # param_maybe_default: param default? ',' | param default? &')'
+        mark = self._mark()
+        if (
+            (a := self.param())
+            and
+            (c := self.default(),)
+            and
+            (self.expect(','))
+        ):
+            return NameDefaultPair ( a , c );
+        self._reset(mark)
+        if (
+            (a := self.param())
+            and
+            (c := self.default(),)
+            and
+            (self.positive_lookahead(self.expect, ')'))
+        ):
+            return NameDefaultPair ( a , c );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def param(self) -> Optional[ASTPattern [arg]]:
+        # param: NAME annotation?
+        mark = self._mark()
+        if (
+            (a := self.name())
+            and
+            (b := self.annotation(),)
+        ):
+            return arg ( arg = a . string , annotation = b or Wildcard ( ) );
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def param_star_annotation(self) -> Optional[ASTPattern [arg]]:
+        # param_star_annotation: todo
+        mark = self._mark()
+        if (
+            (todo := self.todo())
+        ):
+            return todo;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def annotation(self) -> Optional[ASTPattern [expr]]:
+        # annotation: ':' expression
+        mark = self._mark()
+        if (
+            (self.expect(':'))
+            and
+            (a := self.expression())
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def star_annotation(self) -> Optional[ASTPattern [expr]]:
+        # star_annotation: todo
+        mark = self._mark()
+        if (
+            (todo := self.todo())
+        ):
+            return todo;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def default(self) -> Optional[ASTPattern [expr]]:
+        # default: '=' expression
+        mark = self._mark()
+        if (
+            (self.expect('='))
+            and
+            (a := self.expression())
+        ):
+            return a;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def exprs(self) -> Optional[list [ASTPattern [expr]]]:
+        # exprs: wildcards0 | wildcards1 | !(expr ','? ')') '$' NAME '{' (exprs) '}' | !(expr ','? ')') '$' NUMBER '{' (exprs) '}' | ','.expr+ ','?
+        mark = self._mark()
+        if (
+            (self.wildcards0())
         ):
             return WildcardRepeat0 ( );
         self._reset(mark)
         if (
-            (self.expect('~'))
-            and
-            (self.expect('+'))
+            (self.wildcards1())
         ):
             return WildcardRepeat1 ( );
         self._reset(mark)
         if (
+            (self.negative_lookahead(self._tmp_20, ))
+            and
             (self.expect('$'))
             and
             (n := self.name())
@@ -467,6 +797,8 @@ class DSLParser(Parser):
             return Capture ( name = n . string , pattern = pattern );
         self._reset(mark)
         if (
+            (self.negative_lookahead(self._tmp_21, ))
+            and
             (self.expect('$'))
             and
             (n := self.number())
@@ -480,7 +812,7 @@ class DSLParser(Parser):
             return Capture ( name = int ( n . string ) , pattern = pattern );
         self._reset(mark)
         if (
-            (a := cast(list [ASTPattern [expr]], self._gather_4()))
+            (a := cast(list [ASTPattern [expr]], self._gather_22()))
             and
             (self.expect(','),)
         ):
@@ -514,6 +846,17 @@ class DSLParser(Parser):
             (lambdef := self.lambdef())
         ):
             return lambdef;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def expression(self) -> Optional[Any]:
+        # expression: expr
+        mark = self._mark()
+        if (
+            (expr := self.expr())
+        ):
+            return expr;
         self._reset(mark)
         return None;
 
@@ -575,7 +918,7 @@ class DSLParser(Parser):
         # star_named_exprs: ','.star_named_expr+ ','?
         mark = self._mark()
         if (
-            (a := cast(list [ASTPattern [expr]], self._gather_6()))
+            (a := cast(list [ASTPattern [expr]], self._gather_24()))
             and
             (self.expect(','),)
         ):
@@ -646,7 +989,7 @@ class DSLParser(Parser):
         if (
             (a := self.conjunction())
             and
-            (b := self._loop1_8())
+            (b := self._loop1_26())
         ):
             return BoolOp ( op = Or ( ) , values = [a , * b] );
         self._reset(mark)
@@ -664,7 +1007,7 @@ class DSLParser(Parser):
         if (
             (a := self.inversion())
             and
-            (b := self._loop1_9())
+            (b := self._loop1_27())
         ):
             return BoolOp ( op = And ( ) , values = [a , * b] );
         self._reset(mark)
@@ -700,7 +1043,7 @@ class DSLParser(Parser):
         if (
             (a := self.bitwise_or())
             and
-            (b := self._loop1_10())
+            (b := self._loop1_28())
         ):
             return Compare ( left = a , ops = [pair ['op'] for pair in b] , comparators = [pair ['comparator'] for pair in b] );
         self._reset(mark)
@@ -1087,23 +1430,23 @@ class DSLParser(Parser):
         if (
             (self.positive_lookahead(self.expect, '('))
             and
-            (_tmp_11 := self._tmp_11())
+            (_tmp_29 := self._tmp_29())
         ):
-            return _tmp_11;
+            return _tmp_29;
         self._reset(mark)
         if (
             (self.positive_lookahead(self.expect, '['))
             and
-            (_tmp_12 := self._tmp_12())
+            (_tmp_30 := self._tmp_30())
         ):
-            return _tmp_12;
+            return _tmp_30;
         self._reset(mark)
         if (
             (self.positive_lookahead(self.expect, '{'))
             and
-            (_tmp_13 := self._tmp_13())
+            (_tmp_31 := self._tmp_31())
         ):
-            return _tmp_13;
+            return _tmp_31;
         self._reset(mark)
         if (
             (wildcard := self.wildcard())
@@ -1134,7 +1477,7 @@ class DSLParser(Parser):
         if (
             (self.expect('('))
             and
-            (a := self._tmp_14())
+            (a := self._tmp_32())
             and
             (self.expect(')'))
         ):
@@ -1144,56 +1487,56 @@ class DSLParser(Parser):
 
     @memoize
     def lambdef(self) -> Optional[Any]:
-        # lambdef: 'never'
+        # lambdef: todo
         mark = self._mark()
         if (
-            (literal := self.expect('never'))
+            (todo := self.todo())
         ):
-            return literal;
+            return todo;
         self._reset(mark)
         return None;
 
     @memoize
     def genexp(self) -> Optional[Any]:
-        # genexp: 'never'
+        # genexp: todo
         mark = self._mark()
         if (
-            (literal := self.expect('never'))
+            (todo := self.todo())
         ):
-            return literal;
+            return todo;
         self._reset(mark)
         return None;
 
     @memoize
     def listcomp(self) -> Optional[Any]:
-        # listcomp: 'never'
+        # listcomp: todo
         mark = self._mark()
         if (
-            (literal := self.expect('never'))
+            (todo := self.todo())
         ):
-            return literal;
+            return todo;
         self._reset(mark)
         return None;
 
     @memoize
     def setcomp(self) -> Optional[Any]:
-        # setcomp: 'never'
+        # setcomp: todo
         mark = self._mark()
         if (
-            (literal := self.expect('never'))
+            (todo := self.todo())
         ):
-            return literal;
+            return todo;
         self._reset(mark)
         return None;
 
     @memoize
     def dictcomp(self) -> Optional[Any]:
-        # dictcomp: 'never'
+        # dictcomp: todo
         mark = self._mark()
         if (
-            (literal := self.expect('never'))
+            (todo := self.todo())
         ):
-            return literal;
+            return todo;
         self._reset(mark)
         return None;
 
@@ -1337,6 +1680,32 @@ class DSLParser(Parser):
         return None;
 
     @memoize
+    def wildcards0(self) -> Optional[Any]:
+        # wildcards0: '~' '*'
+        mark = self._mark()
+        if (
+            (literal := self.expect('~'))
+            and
+            (literal_1 := self.expect('*'))
+        ):
+            return [literal, literal_1];
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def wildcards1(self) -> Optional[Any]:
+        # wildcards1: '~' '+'
+        mark = self._mark()
+        if (
+            (literal := self.expect('~'))
+            and
+            (literal_1 := self.expect('+'))
+        ):
+            return [literal, literal_1];
+        self._reset(mark)
+        return None;
+
+    @memoize
     def wildcard(self) -> Optional[Wildcard]:
         # wildcard: '~'
         mark = self._mark()
@@ -1397,7 +1766,20 @@ class DSLParser(Parser):
 
     @memoize
     def _tmp_1(self) -> Optional[Any]:
-        # _tmp_1: '=' ellipsis?
+        # _tmp_1: '->' expression
+        mark = self._mark()
+        if (
+            (self.expect('->'))
+            and
+            (z := self.expression())
+        ):
+            return z;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def _tmp_2(self) -> Optional[Any]:
+        # _tmp_2: '=' ellipsis?
         mark = self._mark()
         if (
             (literal := self.expect('='))
@@ -1409,8 +1791,8 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _loop0_3(self) -> Optional[Any]:
-        # _loop0_3: '\n' decorator
+    def _loop0_4(self) -> Any:
+        # _loop0_4: '\n' decorator
         mark = self._mark()
         children = []
         while (
@@ -1424,14 +1806,14 @@ class DSLParser(Parser):
         return children;
 
     @memoize
-    def _gather_2(self) -> Optional[Any]:
-        # _gather_2: decorator _loop0_3
+    def _gather_3(self) -> Optional[Any]:
+        # _gather_3: decorator _loop0_4
         mark = self._mark()
         if (
             (elem := self.decorator())
             is not None
             and
-            (seq := self._loop0_3())
+            (seq := self._loop0_4())
             is not None
         ):
             return [elem] + seq;
@@ -1439,8 +1821,233 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _loop0_5(self) -> Optional[Any]:
-        # _loop0_5: ',' expr
+    def _loop0_5(self) -> list[ASTPattern [arg]]:
+        # _loop0_5: param_no_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_no_default := self.param_no_default())
+        ):
+            children.append(param_no_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop0_6(self) -> list[NameDefaultPair]:
+        # _loop0_6: param_with_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_with_default := self.param_with_default())
+        ):
+            children.append(param_with_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop0_7(self) -> list[NameDefaultPair]:
+        # _loop0_7: param_with_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_with_default := self.param_with_default())
+        ):
+            children.append(param_with_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_8(self) -> list[ASTPattern [arg]]:
+        # _loop1_8: param_no_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_no_default := self.param_no_default())
+        ):
+            children.append(param_no_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop0_9(self) -> list[NameDefaultPair]:
+        # _loop0_9: param_with_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_with_default := self.param_with_default())
+        ):
+            children.append(param_with_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_10(self) -> list[NameDefaultPair]:
+        # _loop1_10: param_with_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_with_default := self.param_with_default())
+        ):
+            children.append(param_with_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_11(self) -> list[ASTPattern [arg]]:
+        # _loop1_11: param_no_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_no_default := self.param_no_default())
+        ):
+            children.append(param_no_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_12(self) -> list[ASTPattern [arg]]:
+        # _loop1_12: param_no_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_no_default := self.param_no_default())
+        ):
+            children.append(param_no_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop0_13(self) -> list[ASTPattern [arg]]:
+        # _loop0_13: param_no_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_no_default := self.param_no_default())
+        ):
+            children.append(param_no_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_14(self) -> list[NameDefaultPair]:
+        # _loop1_14: param_with_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_with_default := self.param_with_default())
+        ):
+            children.append(param_with_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop0_15(self) -> list[ASTPattern [arg]]:
+        # _loop0_15: param_no_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_no_default := self.param_no_default())
+        ):
+            children.append(param_no_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_16(self) -> list[NameDefaultPair]:
+        # _loop1_16: param_with_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_with_default := self.param_with_default())
+        ):
+            children.append(param_with_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop0_17(self) -> list[NameDefaultPair]:
+        # _loop0_17: param_maybe_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_maybe_default := self.param_maybe_default())
+        ):
+            children.append(param_maybe_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop0_18(self) -> list[NameDefaultPair]:
+        # _loop0_18: param_maybe_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_maybe_default := self.param_maybe_default())
+        ):
+            children.append(param_maybe_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _loop1_19(self) -> list[NameDefaultPair]:
+        # _loop1_19: param_maybe_default
+        mark = self._mark()
+        children = []
+        while (
+            (param_maybe_default := self.param_maybe_default())
+        ):
+            children.append(param_maybe_default)
+            mark = self._mark()
+        self._reset(mark)
+        return children;
+
+    @memoize
+    def _tmp_20(self) -> Optional[Any]:
+        # _tmp_20: expr ','? ')'
+        mark = self._mark()
+        if (
+            (expr := self.expr())
+            and
+            (opt := self.expect(','),)
+            and
+            (literal := self.expect(')'))
+        ):
+            return [expr, opt, literal];
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def _tmp_21(self) -> Optional[Any]:
+        # _tmp_21: expr ','? ')'
+        mark = self._mark()
+        if (
+            (expr := self.expr())
+            and
+            (opt := self.expect(','),)
+            and
+            (literal := self.expect(')'))
+        ):
+            return [expr, opt, literal];
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def _loop0_23(self) -> Any:
+        # _loop0_23: ',' expr
         mark = self._mark()
         children = []
         while (
@@ -1454,14 +2061,14 @@ class DSLParser(Parser):
         return children;
 
     @memoize
-    def _gather_4(self) -> Optional[Any]:
-        # _gather_4: expr _loop0_5
+    def _gather_22(self) -> Optional[Any]:
+        # _gather_22: expr _loop0_23
         mark = self._mark()
         if (
             (elem := self.expr())
             is not None
             and
-            (seq := self._loop0_5())
+            (seq := self._loop0_23())
             is not None
         ):
             return [elem] + seq;
@@ -1469,8 +2076,8 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _loop0_7(self) -> Optional[Any]:
-        # _loop0_7: ',' star_named_expr
+    def _loop0_25(self) -> Any:
+        # _loop0_25: ',' star_named_expr
         mark = self._mark()
         children = []
         while (
@@ -1484,14 +2091,14 @@ class DSLParser(Parser):
         return children;
 
     @memoize
-    def _gather_6(self) -> Optional[Any]:
-        # _gather_6: star_named_expr _loop0_7
+    def _gather_24(self) -> Optional[Any]:
+        # _gather_24: star_named_expr _loop0_25
         mark = self._mark()
         if (
             (elem := self.star_named_expr())
             is not None
             and
-            (seq := self._loop0_7())
+            (seq := self._loop0_25())
             is not None
         ):
             return [elem] + seq;
@@ -1499,34 +2106,34 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _loop1_8(self) -> Optional[Any]:
-        # _loop1_8: ('or' conjunction)
+    def _loop1_26(self) -> Any:
+        # _loop1_26: ('or' conjunction)
         mark = self._mark()
         children = []
         while (
-            (_tmp_15 := self._tmp_15())
+            (_tmp_33 := self._tmp_33())
         ):
-            children.append(_tmp_15)
+            children.append(_tmp_33)
             mark = self._mark()
         self._reset(mark)
         return children;
 
     @memoize
-    def _loop1_9(self) -> Optional[Any]:
-        # _loop1_9: ('and' inversion)
+    def _loop1_27(self) -> Any:
+        # _loop1_27: ('and' inversion)
         mark = self._mark()
         children = []
         while (
-            (_tmp_16 := self._tmp_16())
+            (_tmp_34 := self._tmp_34())
         ):
-            children.append(_tmp_16)
+            children.append(_tmp_34)
             mark = self._mark()
         self._reset(mark)
         return children;
 
     @memoize
-    def _loop1_10(self) -> Optional[Any]:
-        # _loop1_10: compare_op_bitwise_or_pair
+    def _loop1_28(self) -> list[dict]:
+        # _loop1_28: compare_op_bitwise_or_pair
         mark = self._mark()
         children = []
         while (
@@ -1538,8 +2145,8 @@ class DSLParser(Parser):
         return children;
 
     @memoize
-    def _tmp_11(self) -> Optional[Any]:
-        # _tmp_11: tuple | group | genexp
+    def _tmp_29(self) -> Optional[Any]:
+        # _tmp_29: tuple | group | genexp
         mark = self._mark()
         if (
             (tuple := self.tuple())
@@ -1559,8 +2166,8 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _tmp_12(self) -> Optional[Any]:
-        # _tmp_12: list | listcomp
+    def _tmp_30(self) -> Optional[Any]:
+        # _tmp_30: list | listcomp
         mark = self._mark()
         if (
             (list := self.list())
@@ -1575,8 +2182,8 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _tmp_13(self) -> Optional[Any]:
-        # _tmp_13: dict | set | dictcomp | setcomp
+    def _tmp_31(self) -> Optional[Any]:
+        # _tmp_31: dict | set | dictcomp | setcomp
         mark = self._mark()
         if (
             (dict := self.dict())
@@ -1601,8 +2208,8 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _tmp_14(self) -> Optional[Any]:
-        # _tmp_14: yield_expr | named_expr
+    def _tmp_32(self) -> Optional[Any]:
+        # _tmp_32: yield_expr | named_expr
         mark = self._mark()
         if (
             (yield_expr := self.yield_expr())
@@ -1617,8 +2224,8 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _tmp_15(self) -> Optional[Any]:
-        # _tmp_15: 'or' conjunction
+    def _tmp_33(self) -> Optional[Any]:
+        # _tmp_33: 'or' conjunction
         mark = self._mark()
         if (
             (self.expect('or'))
@@ -1630,8 +2237,8 @@ class DSLParser(Parser):
         return None;
 
     @memoize
-    def _tmp_16(self) -> Optional[Any]:
-        # _tmp_16: 'and' inversion
+    def _tmp_34(self) -> Optional[Any]:
+        # _tmp_34: 'and' inversion
         mark = self._mark()
         if (
             (self.expect('and'))
@@ -1642,7 +2249,7 @@ class DSLParser(Parser):
         self._reset(mark)
         return None;
 
-    KEYWORDS = ('False', 'None', 'True', 'and', 'async', 'await', 'class', 'def', 'delete', 'else', 'for', 'from', 'if', 'in', 'is', 'never', 'not', 'or', 'return', 'while', 'yield')
+    KEYWORDS = ('False', 'None', 'True', 'and', 'async', 'await', 'class', 'def', 'delete', 'else', 'for', 'from', 'if', 'in', 'is', 'not', 'or', 'return', 'todo', 'while', 'yield')
     SOFT_KEYWORDS = ()
 
 

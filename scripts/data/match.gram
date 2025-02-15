@@ -36,11 +36,12 @@ from typing import Any, Optional, TYPE_CHECKING, cast
 
 from rich import print
 from pegen.parser import memoize, memoize_left_rec, logger, Parser
+from functools import reduce, wraps
 """
 
 
 @subheader"""\
-from functools import reduce, wraps
+from .parser_helpers import *
 from .nodes import *
 
 def wrap_start(fn):
@@ -75,6 +76,9 @@ def _make_dict(head, tail):
 
 """
 
+todo: 'todo' { _Todo()}
+
+
 start: stmts ENDMARKER { stmts }
 
 stmts[list[stmt]]: 
@@ -97,11 +101,16 @@ stmt[stmt]:
     | expr_stmt
 
 function_def[FunctionDef]:
-    | d=decorators?  'def'  n=id  '('  a=args?  ')'  ellipsis? { FunctionDef(name=n, decorator_list=d or [], args=a or arguments.make_empty()) }
+    # | d=decorators?  'def'  n=id  '('  a=args?  ')'  ellipsis? { FunctionDef(name=n, decorator_list=d or [], args=a or arguments.make_empty()) }
     # | d=decorators?  'def'  n=id  '('  a=args?  ')'  ellipsis? { FunctionDef(name=n, decorator_list=d or [], args=a or Wildcard()) }
 
+    | 'def' n=id t=[type_params] '(' params=params? ')' a=['->' z=expression { z }] ':' '...' {
+        FunctionDef(name=n, decorator_list=[], args=params or arguments.make_empty())
+    }
+
+
 async_function_def[AsyncFunctionDef]:
-    | d=decorators?  'async'  'def'  n=id  '('  a=args?  ')'  ellipsis? { AsyncFunctionDef(name=n, decorator_list=d or [], args=a or arguments.make_empty()) }
+    | d=decorators?  'async'  'def'  n=id  '('  a=params?  ')'  ellipsis? { AsyncFunctionDef(name=n, decorator_list=d or [], args=a or arguments.make_empty()) }
 
 class_def[ClassDef]:
     | d=decorators?  'class'  n=id  bases=class_bases?  ellipsis? { ClassDef(name=n, bases=bases or [], decorator_list=d or []) }
@@ -142,19 +151,105 @@ decorator[ASTPattern[expr]]:
 class_bases[list[ASTPattern[expr]]]: 
     | '('  e=exprs  ')' {e}
 
-args[arguments]: exprs
+# TODO
+# args[arguments]: exprs
 
 ellipsis[Any]:
     | ':'  '...'
     | ':'
 
+# --------------------------------- Function --------------------------------- #
+
+# ? No default => wildcard or empty
+
+type_params[list[ASTPattern[expr]]]:
+    | todo
+
+
+### 1.
+params[ASTPattern[arguments]]:
+    # | wildcards0 { Wildcard() }
+    # | wildcards1 { "never" } # TODO
+    | parameters
+
+parameters[ASTPattern[arguments]]:
+    | a=slash_no_default b=param_no_default* c=param_with_default* d=[star_etc] {
+        make_arguments(
+            slash_without_default=a,
+            plain_names=b,
+            names_with_default=c,
+            star_etc=d,
+        )
+      }
+    | a=slash_with_default b=param_with_default* c=[star_etc] {
+        make_arguments(
+            slash_with_default=a,
+            names_with_default=b,
+            star_etc=c,
+        )
+      }
+    | a=param_no_default+ b=param_with_default* c=[star_etc] {
+        make_arguments(
+            plain_names=a,
+            names_with_default=b,
+            star_etc=c,
+        )
+      }
+    | a=param_with_default+ b=[star_etc] {
+        make_arguments(
+            names_with_default=a,
+            star_etc=b,
+        )
+      }
+    | a=star_etc {
+        make_arguments(star_etc=a)
+    }
+
+### 2.
+slash_no_default[list[arg]]:
+    | a=param_no_default+ '/' ',' { a }
+    | a=param_no_default+ '/' &')' { a }
+slash_with_default[SlashWithDefault]:
+    | a=param_no_default* b=param_with_default+ '/' ',' { SlashWithDefault(a, b) }
+    | a=param_no_default* b=param_with_default+ '/' &')' { SlashWithDefault(a, b) }
+
+star_etc[StarEtc]:
+    | '*' a=param_no_default b=param_maybe_default* c=[kwds] { StarEtc(a, b, c) }
+    | '*' a=param_no_default_star_annotation b=param_maybe_default* c=[kwds] { StarEtc(a, b, c) }
+    | '*' ',' b=param_maybe_default+ c=[kwds] { StarEtc(None, b, c) }
+    | a=kwds { StarEtc(None, [], a) }
+
+kwds[ASTPattern[arg]]:
+    | '**' a=param_no_default { a }
+
+### 3.
+param_no_default[ASTPattern[arg]]:
+    | a=param ','  { a }
+    | a=param  &')' { a }
+param_no_default_star_annotation[ASTPattern[arg]]:
+    | a=param_star_annotation ','  { a }
+    | a=param_star_annotation &')' { a }
+param_with_default[NameDefaultPair]:
+    | a=param c=default ','  { NameDefaultPair(a, c) }
+    | a=param c=default  &')' { NameDefaultPair(a, c) }
+param_maybe_default[NameDefaultPair]:
+    | a=param c=default? ','  { NameDefaultPair(a, c) }
+    | a=param c=default? &')' { NameDefaultPair(a, c) }
+
+param[ASTPattern[arg]]: a=NAME b=annotation? { arg(arg=a.string, annotation=b or Wildcard()) }
+param_star_annotation[ASTPattern[arg]]: todo
+annotation[ASTPattern[expr]]: ':' a=expression { a }
+star_annotation[ASTPattern[expr]]: todo
+default[ASTPattern[expr]]: '=' a=expression { a } 
+
 # ------------------------------- Expressions ------------------------------ #
 
 exprs[list[ASTPattern[expr]]]:
-    | '~' '*' { WildcardRepeat0() }
-    | '~' '+' { WildcardRepeat1() }
-    | '$' n=NAME '{' pattern=exprs '}' { Capture(name=n.string, pattern=pattern) }
-    | '$' n=NUMBER '{' pattern=exprs '}' { Capture(name=int(n.string), pattern=pattern) }
+    |  wildcards0 { WildcardRepeat0() }
+    |  wildcards1 { WildcardRepeat1() }
+    # TODO: where is exprs used?
+    | !(expr ','? ')') '$' n=NAME '{' pattern=( exprs) '}' { Capture(name=n.string, pattern=pattern) }
+    | !(expr ','? ')') '$' n=NUMBER '{' pattern=( exprs) '}' { Capture(name=int(n.string), pattern=pattern) }
     | a[list[ASTPattern[expr]]]=','.expr+ ','? { a }
 
 expr[ASTPattern[expr]]:
@@ -162,6 +257,7 @@ expr[ASTPattern[expr]]:
     | disjunction
     | lambdef
 
+expression: expr
 
 yield_expr[ASTPattern[expr]]:
     | 'yield' 'from' a=expr { YieldFrom(a) }
@@ -288,11 +384,11 @@ group[expr_ty]:
 
 # ---------------------------------- Lambda ---------------------------------- #
 
-lambdef: 'never'
-genexp: 'never'
-listcomp: 'never'   
-setcomp: 'never'
-dictcomp: 'never'
+lambdef: todo
+genexp: todo
+listcomp: todo
+setcomp: todo
+dictcomp: todo
 
 # --------------------------------- Literals --------------------------------- #
 
@@ -337,6 +433,13 @@ id[Capture[_Identifier]|WildcardId|_Identifier]:
 
 capture_id[Capture]:
     | c=capture { Capture(name=c['name'], pattern=WildcardId()) }
+
+
+wildcards0:
+    | '~' '*'
+
+wildcards1:
+    | '~' '+'
 
 wildcard[Wildcard]:
     | '~' { Wildcard() }
