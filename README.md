@@ -1,6 +1,6 @@
 # `ast_lib`
 
-**🚧 This library is currently under development.**
+> 🚧 This library is currently under development.
 
 A Python library for pattern matching and traversing AST nodes with a simple DSL syntax and powerful visitor framework.
 
